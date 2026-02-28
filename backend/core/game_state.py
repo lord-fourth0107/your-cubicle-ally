@@ -68,6 +68,7 @@ class ActorInstance(BaseModel):
 
 
 class PlayerProfile(BaseModel):
+    name: str                       # player's first name, used in actor dialogue
     role: str
     seniority: str
     domain: str
