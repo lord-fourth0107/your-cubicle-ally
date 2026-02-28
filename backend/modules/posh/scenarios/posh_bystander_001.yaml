@@ -1,0 +1,110 @@
+id: posh_bystander_001
+module_id: posh
+title: "The Uncomfortable Joke"
+max_steps: 6
+
+rubric:
+  goal: >
+    As a bystander, intervene effectively to support Claire and hold Marcus accountable.
+    Gold standard: address the behaviour directly AND ensure Claire knows she has support
+    for a formal report. Every turn of silence or deflection normalises the harassment.
+  key_concepts:
+    - Bystander intervention
+    - POSH Act reporting obligations
+    - Creating psychological safety
+    - Addressing harassment in group settings
+    - Upstander vs. bystander behaviour
+  few_shot_examples:
+    - choice: "Tell Marcus directly that the comment wasn't appropriate"
+      score: 88
+      reasoning: >
+        Direct, professional pushback that clearly signals the behaviour is unacceptable.
+        Names the problem without escalating unnecessarily.
+    - choice: "Ask Claire privately if she's okay after lunch"
+      score: 72
+      reasoning: >
+        Supportive action that validates Claire's experience. Good instinct but does
+        not address Marcus's behaviour directly — leaves the root cause unresolved.
+    - choice: "Change the subject loudly to break the tension"
+      score: 45
+      reasoning: >
+        Diffuses immediate discomfort but avoids addressing the conduct. Marcus is
+        left with the impression that his behaviour is acceptable.
+    - choice: "Laugh it off and look away"
+      score: 18
+      reasoning: >
+        Passive bystander response. Effectively endorses Marcus's behaviour and
+        leaves Claire without any visible support from a colleague.
+    - choice: "Tell Claire you saw what happened and you're happy to support a formal report"
+      score: 95
+      reasoning: >
+        Best-in-class response. Validates Claire, offers concrete support, and correctly
+        invokes the formal reporting pathway under the POSH Act.
+
+entry_turn:
+  situation: >
+    It's a Friday team lunch at a restaurant. The mood is relaxed.
+    Marcus, your senior colleague, cracks a sexually charged joke loosely directed at Claire.
+    The table laughs awkwardly. Claire goes quiet and stares at her plate.
+    Everyone is waiting to see what happens next.
+  turn_order:
+    - marcus
+  directives:
+    marcus: "Make the joke and look pleased with yourself. Deflect any tension with humour."
+  actor_reactions:
+    - actor_id: marcus
+      dialogue: "Relax, it's just a joke. Everyone's so sensitive these days."
+  choices_offered:
+    - label: "Ask Claire privately if she's okay after lunch"
+      valence: positive
+    - label: "Change the subject loudly to break the tension"
+      valence: neutral
+    - label: "Laugh it off and look away"
+      valence: negative
+
+actors:
+  - actor_id: marcus
+    persona: >
+      A confident, socially dominant mid-level colleague who doesn't believe he's done anything wrong.
+      He sees himself as the life of the party and interprets any pushback as oversensitivity.
+    role: >
+      The offender. Makes a sexually charged joke at a team lunch and deflects any pushback
+      with humour and social pressure.
+    personality: >
+      Charming, self-assured, and quick to minimise conflict by reframing it as the other
+      person's problem. Uses laughter to disarm criticism. Does not get overtly aggressive.
+    skills:
+      - social_pressure
+      - deflection
+    tools: []
+
+  - actor_id: claire
+    persona: >
+      A reserved, professional newer team member who is the target of the joke.
+      She is competent and values her reputation, which makes the public nature of the joke
+      especially difficult to navigate.
+    role: >
+      The target. She is visibly uncomfortable but hesitant to make a scene in a group setting.
+      She will open up if someone creates a safe, private space for her.
+    personality: >
+      Quietly composed, conflict-averse in public settings, but forthright one-on-one.
+      She is paying close attention to how her colleagues respond.
+    skills:
+      - hesitation
+    tools: []
+
+  - actor_id: jordan
+    persona: >
+      A quiet bystander who laughed along but privately feels uneasy.
+      Jordan considers themselves a decent person but consistently defaults to the path
+      of least resistance.
+    role: >
+      The bystander. Will follow the player's lead if directly engaged; will stay quiet
+      if the player stays quiet.
+    personality: >
+      Conflict-averse, goes along with the group, has a conscience but rarely acts on it
+      without external prompting.
+    skills:
+      - bystander_effect
+      - hesitation
+    tools: []

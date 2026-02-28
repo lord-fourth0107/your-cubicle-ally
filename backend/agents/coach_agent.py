@@ -2,7 +2,7 @@
 agents/coach_agent.py
 ---------------------
 Writes the end-of-scenario debrief. Runs once per session.
-Uses the Gemini SDK directly with JSON response mode.
+Uses the Gemini SDK (google-genai) with JSON response mode.
 
 Output contract:
   {
@@ -29,7 +29,9 @@ Depended on by: API routes (debrief endpoint)
 
 import os
 import json
-import google.generativeai as genai
+from google import genai
+from google.genai import types
+
 from core.game_state import GameState
 
 
@@ -43,14 +45,8 @@ principles. Never be preachy or condescending.
 
 class CoachAgent:
     def __init__(self):
-        genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
-        self.model = genai.GenerativeModel(
-            model_name=os.getenv("GEMINI_MODEL", "gemini-2.0-flash"),
-            generation_config=genai.GenerationConfig(
-                response_mime_type="application/json",
-            ),
-            system_instruction=COACH_SYSTEM_PROMPT,
-        )
+        self.client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
+        self.model_name = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
 
     async def debrief(self, state: GameState) -> dict:
         """
@@ -78,5 +74,13 @@ class CoachAgent:
             "  recommended_followup (list of str: module ids worth trying next, can be empty)"
         )
 
-        response = await self.model.generate_content_async(prompt)
+        response = await self.client.aio.models.generate_content(
+            model=self.model_name,
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                system_instruction=COACH_SYSTEM_PROMPT,
+                response_mime_type="application/json",
+            ),
+        )
+
         return json.loads(response.text)
