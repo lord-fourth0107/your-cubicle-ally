@@ -13,7 +13,10 @@ from services.sprite_generator import (
     generate_actor_sprite,
     generate_environment_animation_frames,
     generate_environment_image,
+    get_cached_world,
     get_scenario_setting,
+    get_world_cache_key,
+    set_cached_world,
 )
 
 router = APIRouter()
@@ -37,12 +40,20 @@ class WorldGenerateResponse(BaseModel):
 async def generate_world(body: WorldGenerateRequest):
     """
     Generate animated environment and character sprites using Gemini.
-    Caches to disk — same scenario reuses cached animations on return.
+    Uses 3-tier cache: 1) in-memory (fast), 2) disk, 3) Gemini (only if absent).
     """
-    key = body.scenario_id or body.module_id
     scenario_id = body.scenario_id or body.module_id
+    cache_key = get_world_cache_key(body.module_id, scenario_id, body.actors)
+
+    # 1. Check in-memory cache first — instant return when revisiting a module
+    cached = get_cached_world(cache_key)
+    if cached is not None:
+        return WorldGenerateResponse(**cached)
+
+    key = scenario_id
     setting = body.scenario_setting or get_scenario_setting(key)
 
+    # 2. Disk cache checked inside each generator; 3. Gemini only if disk miss
     # Animated environment (2 frames for crossfade)
     env_frames = generate_environment_animation_frames(
         body.module_id, setting, scenario_id
@@ -67,9 +78,14 @@ async def generate_world(body: WorldGenerateRequest):
             if sprite:
                 actor_animations[actor_id] = [sprite]
 
-    return WorldGenerateResponse(
+    response = WorldGenerateResponse(
         environment_image=environment_image,
         actor_sprites=actor_sprites,
         actor_animations=actor_animations,
         environment_frames=env_frames,
     )
+
+    # Store in memory for next request (same module/scenario)
+    set_cached_world(cache_key, response.model_dump())
+
+    return response

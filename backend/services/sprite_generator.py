@@ -19,6 +19,9 @@ _genai_client = None
 # Cache directory: backend/cache/sprite_cache/ (created on first use)
 _CACHE_DIR: Path | None = None
 
+# In-memory cache: scenario_key -> cached result. Checked first, then disk, then Gemini.
+_MEMORY_CACHE: dict[str, dict] = {}
+
 
 def _get_cache_dir() -> Path:
     """Get or create the sprite cache directory."""
@@ -278,6 +281,22 @@ def generate_actor_sprite(actor_id: str, name: str, role: str) -> Optional[str]:
         _save_to_cache(cache_path, data)
         return f"data:image/png;base64,{base64.b64encode(data).decode()}"
     return None
+
+
+def get_world_cache_key(module_id: str, scenario_id: str, actors: list[dict]) -> str:
+    """Build a unique key for in-memory world cache."""
+    actor_ids = sorted(a.get("actor_id", "") for a in actors)
+    return f"{scenario_id or module_id}:{','.join(actor_ids)}"
+
+
+def get_cached_world(cache_key: str) -> dict | None:
+    """Return cached world data from memory if present."""
+    return _MEMORY_CACHE.get(cache_key)
+
+
+def set_cached_world(cache_key: str, data: dict) -> None:
+    """Store world data in memory for fast reuse."""
+    _MEMORY_CACHE[cache_key] = data
 
 
 def get_scenario_setting(module_or_scenario_id: str) -> str:
