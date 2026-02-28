@@ -570,9 +570,15 @@ async function playDialogueAudio(reactions) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: r.dialogue, actor_id: r.actor_id }),
       });
-      if (!res.ok) break;
+      if (!res.ok) {
+        await speakWithSystemVoice(r.dialogue, r.actor_id);
+        continue;
+      }
       const { audio } = await res.json();
-      if (!audio) continue;
+      if (!audio) {
+        await speakWithSystemVoice(r.dialogue, r.actor_id);
+        continue;
+      }
       await new Promise((resolve, reject) => {
         const el = new Audio(audio);
         el.onended = resolve;
@@ -581,9 +587,38 @@ async function playDialogueAudio(reactions) {
       });
     } catch (err) {
       console.warn("TTS playback failed:", err);
-      break;
+      await speakWithSystemVoice(r.dialogue, r.actor_id);
     }
   }
+}
+
+function pickSystemVoice(actorId = "") {
+  const synth = window.speechSynthesis;
+  if (!synth) return null;
+  const voices = synth.getVoices ? synth.getVoices() : [];
+  if (!voices.length) return null;
+
+  const english = voices.filter((v) => (v.lang || "").toLowerCase().startsWith("en"));
+  const pool = english.length ? english : voices;
+  const seed = (actorId || "default").split("").reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+  return pool[seed % pool.length] || pool[0];
+}
+
+async function speakWithSystemVoice(text, actorId = "") {
+  if (!text?.trim() || !window.speechSynthesis || typeof SpeechSynthesisUtterance === "undefined") {
+    return;
+  }
+
+  await new Promise((resolve) => {
+    const u = new SpeechSynthesisUtterance(text);
+    const voice = pickSystemVoice(actorId);
+    if (voice) u.voice = voice;
+    u.rate = 1;
+    u.pitch = 1;
+    u.onend = resolve;
+    u.onerror = resolve;
+    window.speechSynthesis.speak(u);
+  });
 }
 
 function escapeHtml(text) {
