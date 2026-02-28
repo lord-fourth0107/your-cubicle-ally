@@ -4,3 +4,4 @@ pydantic
 pyyaml
 python-dotenv
 google-generativeai
+google-genai

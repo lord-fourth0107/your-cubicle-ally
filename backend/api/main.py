@@ -11,12 +11,13 @@ Depended on by: Electron main process (server-manager.ts)
 """
 
 from fastapi import FastAPI
-from .routes import session, turn
+from .routes import session, turn, world
 
 app = FastAPI(title="Your Cubicle Ally", version="0.1.0")
 
 app.include_router(session.router, prefix="/session", tags=["session"])
 app.include_router(turn.router, prefix="/turn", tags=["turn"])
+app.include_router(world.router, prefix="/world", tags=["world"])
 
 
 @app.get("/health")

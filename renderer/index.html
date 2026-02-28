@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' http://localhost:8000">
   <title>Your Cubicle Ally</title>
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -12,35 +12,194 @@
   <div id="welcome-screen" class="screen active">
     <div class="welcome-content">
       <h1 class="welcome-title">Your Cubicle Ally</h1>
-      <p class="welcome-subtitle">AI-powered onboarding to help you get started</p>
+      <p class="welcome-subtitle">Battle through real workplace scenarios. Make choices that matter — learn from every hit.</p>
     </div>
-    <button id="start-onboarding-btn" class="primary-btn">Start My Onboarding</button>
+    <button id="start-btn" class="primary-btn">Start Compliance Training</button>
   </div>
 
-  <!-- Job Description Screen -->
-  <div id="job-description-screen" class="screen">
+  <!-- Setup Screen: Resume + Module Selection -->
+  <div id="setup-screen" class="screen">
     <button id="back-to-welcome-btn" class="back-btn" title="Go back">← Back</button>
-    <div class="screen-content">
-      <h1>Tell us about your role</h1>
-      <p class="screen-subtitle">Enter your job description so we can personalize your onboarding experience</p>
-      <textarea 
-        id="job-description-input" 
-        placeholder="e.g., I'm a Software Engineer joining the Platform team. I'll be working on API development, microservices, and cloud infrastructure..."
-        rows="6"
-      ></textarea>
-      <button id="submit-job-btn" class="primary-btn">Continue</button>
+    <div class="setup-content">
+      <h1>Get Ready for Battle</h1>
+      <p class="screen-subtitle">Upload your resume or paste your job description. Choose a compliance module to train on.</p>
+
+      <div class="setup-form">
+        <label for="resume-input">Resume or Job Description</label>
+        <textarea 
+          id="resume-input" 
+          placeholder="e.g., I'm a Software Engineer joining the Platform team. I'll be working on API development, microservices, and cloud infrastructure..."
+          rows="5"
+        ></textarea>
+
+        <label for="module-select">Compliance Module</label>
+        <select id="module-select">
+          <option value="">Choose a module...</option>
+          <optgroup label="Prevention of Sexual Harassment (POSH)">
+            <option value="posh-bystander">The Uncomfortable Joke</option>
+            <option value="posh-microaggression">Microaggression in Stand-ups</option>
+            <option value="posh-customer">Customer Crossing the Line</option>
+            <option value="posh-offsite">Team Offsite</option>
+          </optgroup>
+          <optgroup label="Cyber Security">
+            <option value="security-password">Password Reuse Boss</option>
+            <option value="security-usb">USB in the Lobby</option>
+            <option value="security-wifi">WiFi Trap</option>
+          </optgroup>
+          <optgroup label="Ethics">
+            <option value="ethics-data">Data for Discount</option>
+            <option value="ethics-favor">Favor for a Friend</option>
+            <option value="ethics-sidegig">Side Gig Conflict</option>
+          </optgroup>
+          <optgroup label="Escalation">
+            <option value="escalation-informal">Informal Complaint</option>
+            <option value="escalation-bias">Low Performer vs Bias</option>
+            <option value="escalation-retaliation">Retaliation Risk</option>
+          </optgroup>
+        </select>
+
+        <button id="start-scenario-btn" class="primary-btn">Enter the Arena</button>
+      </div>
     </div>
   </div>
 
-  <!-- Onboarding Trainings List Screen -->
-  <div id="trainings-screen" class="screen">
-    <button id="back-to-job-btn" class="back-btn" title="Go back">← Back</button>
-    <div class="screen-content">
-      <h1>Your Onboarding Trainings</h1>
-      <p class="screen-subtitle">Complete these modules to get up to speed</p>
-      <ul id="trainings-list" class="trainings-list">
-        <!-- Populated by JS -->
-      </ul>
+  <!-- World Setup Screen: Generative environment creation -->
+  <div id="world-setup-screen" class="screen">
+    <div class="world-setup-content">
+      <h1>Generating Your Simulated Environment</h1>
+      <p class="world-setup-subtitle">AI is creating your scenario world with Google Gemini</p>
+      <div class="world-progress">
+        <div class="world-progress-step" id="world-step-env">
+          <span class="step-icon">🖼️</span>
+          <span class="step-label">Environment</span>
+          <span class="step-status" id="world-status-env">...</span>
+        </div>
+        <div class="world-progress-step" id="world-step-sprites">
+          <span class="step-icon">👥</span>
+          <span class="step-label">Character Sprites</span>
+          <span class="step-status" id="world-status-sprites">...</span>
+        </div>
+        <div class="world-progress-step" id="world-step-ready">
+          <span class="step-icon">✨</span>
+          <span class="step-label">Ready</span>
+          <span class="step-status" id="world-status-ready">...</span>
+        </div>
+      </div>
+      <div class="world-preview" id="world-preview">
+        <!-- Generated preview appears here -->
+      </div>
+      <p class="world-fallback-note" id="world-fallback-note"></p>
+    </div>
+  </div>
+
+  <!-- Arena Screen: Battle UI -->
+  <div id="arena-screen" class="screen">
+    <header class="arena-header">
+      <span class="arena-module-label" id="arena-module-label">POSH</span>
+      <span class="arena-step-counter" id="arena-step-counter">Step 1 of 6</span>
+    </header>
+
+    <div class="arena-layout">
+      <aside class="actor-panel">
+        <h3 class="panel-title">Characters</h3>
+        <div id="actor-cards" class="actor-cards">
+          <!-- Populated by JS -->
+        </div>
+      </aside>
+
+      <!-- Generative World: Simulated environment with sprites -->
+      <section class="world-scene" id="world-scene">
+        <div class="world-environment" id="world-environment">
+          <!-- Environment image or gradient placeholder -->
+        </div>
+        <div class="world-sprites" id="world-sprites">
+          <!-- Actor sprites positioned in scene -->
+        </div>
+      </section>
+
+      <main class="arena-main">
+        <div class="hp-bar-container">
+          <div class="hp-bar-wrapper">
+            <div class="hp-bar-fill" id="hp-bar-fill"></div>
+          </div>
+          <span class="hp-text" id="hp-text">100 / 100</span>
+        </div>
+
+        <section class="situation-panel">
+          <h3 class="panel-title">Situation</h3>
+          <p class="situation-text" id="situation-text">
+            Loading...
+          </p>
+        </section>
+
+        <section class="actor-reactions" id="actor-reactions">
+          <!-- Actor dialogue bubbles appear here after each turn -->
+        </section>
+
+        <section class="choices-panel">
+          <h3 class="panel-title">Your Move</h3>
+          <div class="choice-cards" id="choice-cards">
+            <!-- Populated by JS -->
+          </div>
+          <div class="free-write-row">
+            <input type="text" id="free-write-input" placeholder="Or write your own response..." />
+            <button id="submit-free-write-btn" class="secondary-btn">Submit</button>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <!-- Loss Overlay (shown when HP hits 0) -->
+    <div id="loss-overlay" class="overlay hidden">
+      <div class="overlay-content">
+        <h2>You Lost</h2>
+        <p>Your HP dropped to zero. Don't worry — every loss is a chance to learn.</p>
+        <div class="overlay-buttons">
+          <button id="retry-btn" class="primary-btn">Retry Scenario</button>
+          <button id="debrief-loss-btn" class="secondary-btn">View Debrief</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Win Overlay -->
+    <div id="win-overlay" class="overlay hidden">
+      <div class="overlay-content">
+        <h2>Victory!</h2>
+        <p>You completed the scenario with HP remaining. Great work navigating the situation.</p>
+        <button id="debrief-win-btn" class="primary-btn">View Debrief</button>
+      </div>
+    </div>
+
+    <!-- Thinking overlay (while waiting for backend) -->
+    <div id="thinking-overlay" class="overlay hidden thinking">
+      <div class="overlay-content">
+        <div class="thinking-pulse"></div>
+        <p>Evaluating your response...</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Debrief Screen -->
+  <div id="debrief-screen" class="screen">
+    <div class="debrief-content">
+      <h1 id="debrief-outcome">Session Debrief</h1>
+      <p class="debrief-summary" id="debrief-summary">Loading...</p>
+
+      <section class="debrief-turn-breakdown">
+        <h3>Turn-by-Turn Breakdown</h3>
+        <ul id="debrief-turn-list">
+          <!-- Populated by JS -->
+        </ul>
+      </section>
+
+      <section class="debrief-concepts" id="debrief-concepts">
+        <h3>Key Compliance Concepts</h3>
+        <ul id="debrief-concepts-list"></ul>
+      </section>
+
+      <div class="debrief-actions">
+        <button id="back-to-setup-btn" class="primary-btn">Train Another Module</button>
+      </div>
     </div>
   </div>
 
