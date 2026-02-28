@@ -21,15 +21,15 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .routes import session, turn
-from ..core.session_manager import SessionManager
-from ..core.orchestrator import Orchestrator
-from ..agents.coach_agent import CoachAgent
-from ..agents.guardrail_agent import GuardrailAgent
-from ..skills.skill_registry import SkillRegistry
-from ..utilities.module_loader import ModuleLoader
-from ..utilities.session_initializer import SessionInitializer
-from ..utilities.prompt_builder import PromptBuilder
+from .routes import session, turn, world
+from core.session_manager import SessionManager
+from core.orchestrator import Orchestrator
+from agents.coach_agent import CoachAgent
+from agents.guardrail_agent import GuardrailAgent
+from skills.skill_registry import SkillRegistry
+from utilities.module_loader import ModuleLoader
+from utilities.session_initializer import SessionInitializer
+from utilities.prompt_builder import PromptBuilder
 
 
 load_dotenv()
@@ -80,6 +80,7 @@ app.add_middleware(
 
 app.include_router(session.router, prefix="/session", tags=["session"])
 app.include_router(turn.router, prefix="/turn", tags=["turn"])
+app.include_router(world.router, prefix="/world", tags=["world"])
 
 
 @app.get("/health")

@@ -31,7 +31,8 @@ import os
 import json
 from google import genai
 from google.genai import types
-from ..core.game_state import GameState
+
+from core.game_state import GameState
 
 
 COACH_SYSTEM_PROMPT = """

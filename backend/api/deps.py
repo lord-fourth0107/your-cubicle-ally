@@ -11,10 +11,11 @@ Owner: API team
 """
 
 from fastapi import Request
-from ..core.session_manager import SessionManager
-from ..core.orchestrator import Orchestrator
-from ..agents.coach_agent import CoachAgent
-from ..utilities.session_initializer import SessionInitializer
+
+from core.session_manager import SessionManager
+from core.orchestrator import Orchestrator
+from agents.coach_agent import CoachAgent
+from utilities.session_initializer import SessionInitializer
 
 
 def get_session_manager(request: Request) -> SessionManager:

@@ -23,10 +23,10 @@ import logging
 from typing import TYPE_CHECKING
 from google import genai
 from google.genai import types
-from ..core.game_state import GameState, Evaluation, ScoringConfig
+from core.game_state import GameState, Evaluation, ScoringConfig
 
 if TYPE_CHECKING:
-    from .scenario_agent import ScenarioOutput
+    from agents.scenario_agent import ScenarioOutput
 
 logger = logging.getLogger(__name__)
 

@@ -1,6 +1,7 @@
 # Your Cubicle Ally
 
 > A Pokemon PvP-style interactive compliance training system powered by AI agents.
+> Hackathon 2026
 
 Employees battle through real workplace scenarios — making choices that matter, taking damage for bad ones, and walking away with genuine learning.
 

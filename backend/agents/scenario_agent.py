@@ -26,8 +26,9 @@ import json
 from dataclasses import dataclass
 from google import genai
 from google.genai import types
-from ..core.game_state import GameState, Evaluation, Choice
-from ..utilities.prompt_builder import PromptBuilder
+
+from core.game_state import GameState, Evaluation, Choice
+from utilities.prompt_builder import PromptBuilder
 
 
 @dataclass

@@ -1,0 +1,635 @@
+/**
+ * Your Cubicle Ally — Compliance Training Frontend
+ * Flow: Welcome → Setup (resume + module) → World Gen (Gemini sprites) → Arena (battle) → Debrief
+ *
+ * Uses mock data when backend is not available. World generation uses Gemini/Imagen for sprites.
+ */
+
+// ============ Mock Data (synced with backend: Marcus, Claire, Jordan) ============
+const MOCK_GAME_STATE = {
+  session_id: "mock-001",
+  player_hp: 100,
+  max_hp: 100,
+  current_step: 0,
+  max_steps: 6,
+  status: "active",
+  current_situation:
+    "It's a Friday team lunch at a restaurant. Marcus, your senior colleague, cracks a sexually charged joke loosely directed at Claire. " +
+    "The table laughs awkwardly. Claire goes quiet and stares at her plate. " +
+    "Everyone is waiting to see what happens next.",
+  current_choices: [
+    { label: "Ask Claire privately if she's okay after lunch", valence: "positive" },
+    { label: "Change the subject loudly to break the tension", valence: "neutral" },
+    { label: "Laugh it off and look away", valence: "negative" },
+  ],
+  current_actor_reactions: [],
+};
+
+const MOCK_ACTORS = [
+  { actor_id: "marcus", name: "Marcus", role: "Senior colleague" },
+  { actor_id: "claire", name: "Claire", role: "Team member" },
+  { actor_id: "jordan", name: "Jordan", role: "Bystander" },
+];
+
+// Mock turn progression (synced with backend: Marcus, Claire, Jordan)
+const MOCK_TURN_PROGRESSION = [
+  {
+    situation:
+      "The group laughs awkwardly. Claire forces a smile but her eyes are down. " +
+      "Jordan catches your eye briefly, then looks away. Marcus is still grinning, waiting to see if anyone pushes back.",
+    choices: [
+      { label: "Tell Marcus directly that the comment wasn't appropriate", valence: "positive" },
+      { label: "Ask Jordan quietly what he thought of that", valence: "neutral" },
+      { label: "Agree with Marcus and change the subject", valence: "negative" },
+    ],
+    actor_reactions: [
+      { actor_id: "marcus", dialogue: "See? Everyone gets it. You all just need to lighten up." },
+      { actor_id: "jordan", dialogue: "I mean... haha... yeah. Anyway, should we order?" },
+    ],
+    hp_delta: -10,
+  },
+  {
+    situation:
+      "Claire quietly excuses herself to the bathroom. Marcus watches her go. " +
+      "'She'll get over it,' he says to no one in particular. Jordan shifts in his seat. This is your moment.",
+    choices: [
+      { label: "Follow Claire to check in with her privately", valence: "positive" },
+      { label: "Challenge Marcus's 'she'll get over it' comment", valence: "neutral" },
+      { label: "Nod and move on — it's not your place", valence: "negative" },
+    ],
+    actor_reactions: [
+      { actor_id: "marcus", dialogue: "She's always been a bit sensitive. You know how it is." },
+      { actor_id: "jordan", dialogue: "I don't know... that felt like a bit much to me, honestly." },
+    ],
+    hp_delta: -10,
+  },
+  {
+    situation:
+      "Claire returns to the table. She looks composed but quieter than before. " +
+      "Marcus makes another off-colour remark — smaller this time. Jordan gives you a pointed look.",
+    choices: [
+      { label: "Suggest reporting to HR when back at the office", valence: "positive" },
+      { label: "Leave it at that — the moment passed", valence: "neutral" },
+      { label: "Confront Marcus before everyone leaves", valence: "neutral" },
+    ],
+    actor_reactions: [{ actor_id: "claire", dialogue: "Thank you. I wasn't sure what to do." }],
+    hp_delta: 0,
+  },
+];
+
+const MOCK_DEBRIEF = {
+  outcome: "won",
+  overall_score: 78,
+  summary:
+    "You showed good bystander instincts by checking in with Claire and addressing the situation. " +
+    "You could have been more direct with Marcus earlier, but overall you demonstrated awareness and support.",
+  turn_breakdowns: [
+    {
+      step: 1,
+      player_choice: "Ask Claire privately if she's okay after lunch",
+      what_happened: "You chose to support the affected colleague.",
+      compliance_insight: "Bystander intervention starts with checking in. Good first step.",
+      hp_delta: 0,
+    },
+    {
+      step: 2,
+      player_choice: "Tell Marcus directly that the comment wasn't appropriate",
+      what_happened: "Marcus deflected. Claire left the table.",
+      compliance_insight: "Direct confrontation can escalate. Consider timing and support.",
+      hp_delta: -10,
+    },
+    {
+      step: 3,
+      player_choice: "Follow Claire to check in with her privately",
+      what_happened: "You created a safe space for her to share.",
+      compliance_insight: "Private check-ins show support without putting the target on the spot.",
+      hp_delta: 0,
+    },
+  ],
+  key_concepts: [
+    "Bystander intervention — taking action when you witness harmful behavior",
+    "POSH Act — Prevention of Sexual Harassment reporting requirements",
+    "Supporting the target — creating safe moments for disclosure",
+  ],
+  recommended_followup: ["posh-microagression", "posh-customer"],
+};
+
+// ============ State ============
+let gameState = { ...MOCK_GAME_STATE };
+let actors = [...MOCK_ACTORS];
+let turnHistory = [];
+let selectedModule = "";
+let selectedModuleLabel = "POSH";
+let worldData = { environment_image: null, actor_sprites: {} };
+const BACKEND_URL = "http://localhost:8000";
+let useMockBackend = false; // Use real backend; falls back to mock if backend unavailable
+
+// ============ DOM Elements ============
+const screens = {
+  welcome: document.getElementById("welcome-screen"),
+  setup: document.getElementById("setup-screen"),
+  worldSetup: document.getElementById("world-setup-screen"),
+  arena: document.getElementById("arena-screen"),
+  debrief: document.getElementById("debrief-screen"),
+};
+
+const arenaElements = {
+  moduleLabel: document.getElementById("arena-module-label"),
+  stepCounter: document.getElementById("arena-step-counter"),
+  actorCards: document.getElementById("actor-cards"),
+  hpBarFill: document.getElementById("hp-bar-fill"),
+  hpText: document.getElementById("hp-text"),
+  situationText: document.getElementById("situation-text"),
+  actorReactions: document.getElementById("actor-reactions"),
+  choiceCards: document.getElementById("choice-cards"),
+  freeWriteInput: document.getElementById("free-write-input"),
+  submitFreeWriteBtn: document.getElementById("submit-free-write-btn"),
+};
+
+const overlays = {
+  loss: document.getElementById("loss-overlay"),
+  win: document.getElementById("win-overlay"),
+  thinking: document.getElementById("thinking-overlay"),
+};
+
+const debriefElements = {
+  outcome: document.getElementById("debrief-outcome"),
+  summary: document.getElementById("debrief-summary"),
+  turnList: document.getElementById("debrief-turn-list"),
+  conceptsList: document.getElementById("debrief-concepts-list"),
+};
+
+// ============ Screen Navigation ============
+function showScreen(screenId) {
+  Object.values(screens).forEach((s) => s.classList.remove("active"));
+  screens[screenId]?.classList.add("active");
+}
+
+// ============ Setup ============
+/** Map backend GameState (with history[]) to our flat UI format. */
+function mapBackendGameState(g) {
+  const lastTurn = g.history?.length ? g.history[g.history.length - 1] : null;
+  return {
+    session_id: g.session_id,
+    player_hp: g.player_hp,
+    max_hp: g.max_hp ?? 100,
+    current_step: g.current_step ?? 0,
+    max_steps: g.max_steps ?? 6,
+    status: g.status,
+    current_situation: lastTurn?.situation ?? "",
+    current_choices: lastTurn?.choices_offered ?? [],
+    current_actor_reactions: lastTurn?.actor_reactions ?? [],
+  };
+}
+
+/** Map backend role text to short, scenario-agnostic role for sprite prompts. */
+function spriteRoleFromActor(actor) {
+  const r = (actor.role || "").toLowerCase();
+  if (r.includes("offender") || r.includes("senior")) return "Senior colleague";
+  if (r.includes("target") || r.includes("newer")) return "Team member";
+  if (r.includes("bystander")) return "Colleague";
+  const first = (actor.role || "").split(".")[0].trim();
+  return first || "Colleague";
+}
+
+/** Convert backend ActorInstance to display format { actor_id, name, role } for world gen + arena. */
+function actorsFromGameState(gameState) {
+  if (!gameState?.actors?.length) return [...MOCK_ACTORS];
+  return gameState.actors.map((a) => ({
+    actor_id: a.actor_id,
+    name: (a.actor_id || "").charAt(0).toUpperCase() + (a.actor_id || "").slice(1),
+    role: spriteRoleFromActor(a),
+  }));
+}
+
+function getModuleLabel(moduleId) {
+  const labels = {
+    "posh-bystander": "POSH",
+    "posh-microaggression": "POSH",
+    "posh-customer": "POSH",
+    "posh-offsite": "POSH",
+    "security-password": "Cyber Security",
+    "security-usb": "Cyber Security",
+    "security-wifi": "Cyber Security",
+    "ethics-data": "Ethics",
+    "ethics-favor": "Ethics",
+    "ethics-sidegig": "Ethics",
+    "escalation-informal": "Escalation",
+    "escalation-bias": "Escalation",
+    "escalation-retaliation": "Escalation",
+  };
+  return labels[moduleId] || "Compliance";
+}
+
+async function startScenario() {
+  const nameInput = document.getElementById("player-name-input");
+  const resumeInput = document.getElementById("resume-input");
+  const moduleSelect = document.getElementById("module-select");
+
+  const playerName = (nameInput?.value || "").trim() || "there";
+  const resume = resumeInput.value.trim();
+  const moduleId = moduleSelect.value;
+
+  if (!moduleId) {
+    moduleSelect.focus();
+    moduleSelect.style.borderColor = "#ef4444";
+    setTimeout(() => (moduleSelect.style.borderColor = ""), 2000);
+    return;
+  }
+
+  selectedModule = moduleId;
+  selectedModuleLabel = getModuleLabel(moduleId);
+
+  const playerProfile = {
+    name: playerName,
+    role: "Professional",
+    seniority: "Mid-level",
+    domain: "General",
+    raw_context: resume || "Mid-level professional, general industry",
+  };
+
+  if (!useMockBackend) {
+    try {
+      const res = await fetch(`${BACKEND_URL}/session/start`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ player_profile: playerProfile, module_id: moduleId }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        gameState = mapBackendGameState(data.game_state);
+        actors = actorsFromGameState(data.game_state);
+        turnHistory = [];
+        showWorldSetup();
+        return;
+      }
+    } catch (err) {
+      console.warn("Backend unavailable, using mock:", err);
+      useMockBackend = true;
+    }
+  }
+
+  resetGameState();
+  actors = [...MOCK_ACTORS];
+  showWorldSetup();
+}
+
+// ============ World Setup (Generative) ============
+function showWorldSetup() {
+  showScreen("world-setup");
+  worldData = { environment_image: null, actor_sprites: {} };
+  updateWorldStep("env", "active", "Generating...");
+  updateWorldStep("sprites", "pending", "Waiting...");
+  updateWorldStep("ready", "pending", "Waiting...");
+  document.getElementById("world-preview").innerHTML = "";
+  document.getElementById("world-fallback-note").textContent = "";
+
+  generateWorld()
+    .then((data) => {
+      worldData = data;
+      updateWorldStep("env", "done", data.environment_image ? "Done" : "Using placeholder");
+      updateWorldStep("sprites", "done", "Done");
+      updateWorldStep("ready", "done", "Ready!");
+
+      const preview = document.getElementById("world-preview");
+      if (data.environment_image) {
+        preview.innerHTML = `<img src="${data.environment_image}" alt="Generated environment" />`;
+      } else {
+        preview.innerHTML = '<span style="color:rgba(255,255,255,0.6)">Placeholder environment (start backend + set GOOGLE_API_KEY for AI sprites)</span>';
+      }
+      const hasAny = data.environment_image || Object.values(data.actor_sprites || {}).some((s) => !!s);
+      if (!hasAny) {
+        document.getElementById("world-fallback-note").textContent =
+          "Tip: Set GOOGLE_API_KEY in backend/.env with Imagen access to generate character portraits and office simulation.";
+      }
+
+      setTimeout(() => enterArena(), 1200);
+    })
+    .catch((err) => {
+      console.error("World generation failed:", err);
+      updateWorldStep("env", "pending", "Failed");
+      updateWorldStep("sprites", "pending", "Skipped");
+      updateWorldStep("ready", "active", "Using placeholders");
+      document.getElementById("world-fallback-note").textContent =
+        "Could not reach backend. Using placeholder environment.";
+      setTimeout(() => enterArena(), 800);
+    });
+}
+
+function updateWorldStep(stepId, status, text) {
+  const el = document.getElementById(`world-step-${stepId}`);
+  const statusEl = document.getElementById(`world-status-${stepId}`);
+  if (el) {
+    el.classList.remove("done", "active", "pending");
+    el.classList.add(status);
+  }
+  if (statusEl) statusEl.textContent = text;
+}
+
+async function generateWorld() {
+  const res = await fetch(`${BACKEND_URL}/world/generate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      module_id: selectedModule,
+      actors: actors.map((a) => ({
+        actor_id: a.actor_id,
+        name: a.name,
+        role: a.role,
+      })),
+    }),
+  });
+  if (!res.ok) throw new Error(res.statusText);
+  return res.json();
+}
+
+function resetGameState() {
+  gameState = {
+    ...MOCK_GAME_STATE,
+    player_hp: 100,
+    current_step: 0,
+    status: "active",
+    current_situation: MOCK_GAME_STATE.current_situation,
+    current_choices: [...MOCK_GAME_STATE.current_choices],
+    current_actor_reactions: [],
+  };
+  turnHistory = [];
+}
+
+// ============ Arena ============
+function enterArena() {
+  showScreen("arena");
+  renderWorldScene();
+  renderArena();
+  hideAllOverlays();
+}
+
+function renderWorldScene() {
+  const envEl = document.getElementById("world-environment");
+  const spritesEl = document.getElementById("world-sprites");
+  if (!envEl || !spritesEl) return;
+
+  if (worldData.environment_image) {
+    envEl.style.backgroundImage = `url(${worldData.environment_image})`;
+  } else {
+    envEl.style.backgroundImage = "";
+  }
+
+  const speakingIds = new Set(gameState.current_actor_reactions.map((r) => r.actor_id));
+  spritesEl.innerHTML = actors
+    .map((a) => {
+      const src = worldData.actor_sprites?.[a.actor_id];
+      const initial = (a.name || "?")[0];
+      const speaking = speakingIds.has(a.actor_id) ? " speaking" : "";
+      if (src) {
+        return `<div class="world-sprite-wrapper${speaking}" data-actor-id="${a.actor_id}"><img class="world-sprite" src="${src}" alt="${a.name}" title="${a.name}" /></div>`;
+      }
+      return `<div class="world-sprite-wrapper${speaking}" data-actor-id="${a.actor_id}"><div class="world-sprite world-sprite-placeholder" title="${a.name}">${initial}</div></div>`;
+    })
+    .join("");
+}
+
+function renderArena() {
+  // Header
+  arenaElements.moduleLabel.textContent = selectedModuleLabel;
+  arenaElements.stepCounter.textContent = `Step ${gameState.current_step + 1} of ${gameState.max_steps}`;
+
+  // Actors (use generated sprite if available)
+  arenaElements.actorCards.innerHTML = actors
+    .map((a) => {
+      const sprite = worldData.actor_sprites?.[a.actor_id];
+      const initial = (a.name || "?")[0];
+      const avatarHtml = sprite
+        ? `<img class="actor-avatar-img" src="${sprite}" alt="${a.name}" />`
+        : `<div class="actor-avatar">${initial}</div>`;
+      return `
+    <div class="actor-card" data-actor-id="${a.actor_id}">
+      <div class="actor-avatar-wrap">${avatarHtml}</div>
+      <span class="actor-name">${a.name || a.actor_id}</span>
+      <span class="actor-role">${a.role || ""}</span>
+    </div>
+  `;
+    })
+    .join("");
+
+  // HP Bar
+  const hpPercent = Math.max(0, (gameState.player_hp / gameState.max_hp) * 100);
+  arenaElements.hpBarFill.style.width = `${hpPercent}%`;
+  arenaElements.hpText.textContent = `${gameState.player_hp} / ${gameState.max_hp}`;
+
+  // Situation
+  arenaElements.situationText.textContent = gameState.current_situation;
+
+  // Actor reactions from last turn (interactive dialogue bubbles)
+  const speakingIds = new Set(gameState.current_actor_reactions.map((r) => r.actor_id));
+  arenaElements.actorReactions.innerHTML = gameState.current_actor_reactions
+    .map(
+      (r) => `
+    <div class="reaction-bubble" data-actor-id="${r.actor_id}">
+      <span class="reaction-avatar">${(getActorName(r.actor_id) || "?")[0]}</span>
+      <span class="reaction-dialogue"><strong>${getActorName(r.actor_id)}:</strong> ${escapeHtml(r.dialogue)}</span>
+    </div>
+  `
+    )
+    .join("");
+
+  // Highlight speaking actors in sidebar
+  arenaElements.actorCards.querySelectorAll(".actor-card").forEach((card) => {
+    card.classList.toggle("speaking", speakingIds.has(card.dataset.actorId));
+  });
+
+  // Choices
+  arenaElements.choiceCards.innerHTML = gameState.current_choices
+    .map(
+      (c, i) => `
+    <button class="choice-card" data-choice-index="${i}" data-label="${escapeHtml(c.label)}">
+      ${escapeHtml(c.label)}
+    </button>
+  `
+    )
+    .join("");
+
+  // Wire choice buttons
+  arenaElements.choiceCards.querySelectorAll(".choice-card").forEach((btn) => {
+    btn.addEventListener("click", () => submitChoice(btn.dataset.label));
+  });
+
+  // Free-write
+  arenaElements.freeWriteInput.value = "";
+  arenaElements.freeWriteInput.onkeydown = (e) => {
+    if (e.key === "Enter") submitChoice(arenaElements.freeWriteInput.value.trim());
+  };
+  arenaElements.submitFreeWriteBtn.onclick = () =>
+    submitChoice(arenaElements.freeWriteInput.value.trim());
+
+  // Disable if game over
+  const isOver = gameState.status === "won" || gameState.status === "lost";
+  arenaElements.choiceCards.querySelectorAll("button").forEach((b) => (b.disabled = isOver));
+  arenaElements.freeWriteInput.disabled = isOver;
+  arenaElements.submitFreeWriteBtn.disabled = isOver;
+}
+
+function getActorName(actorId) {
+  const a = actors.find((x) => x.actor_id === actorId);
+  return a ? a.name || actorId : actorId;
+}
+
+function escapeHtml(text) {
+  const div = document.createElement("div");
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+function submitChoice(choiceText) {
+  if (!choiceText) return;
+
+  showOverlay("thinking");
+
+  if (useMockBackend) {
+    setTimeout(() => processMockTurn(choiceText), 800);
+  } else {
+    submitTurnToBackend(choiceText)
+      .then((state) => applyGameState(state))
+      .catch((err) => {
+        console.error("Backend error, using mock:", err);
+        hideOverlay("thinking");
+        processMockTurn(choiceText);
+      });
+  }
+}
+
+async function submitTurnToBackend(playerChoice) {
+  const res = await fetch(`${BACKEND_URL}/turn/submit`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ session_id: gameState.session_id, player_choice: playerChoice }),
+  });
+  if (!res.ok) throw new Error(res.statusText);
+  return res.json();
+}
+
+function applyGameState(data) {
+  hideOverlay("thinking");
+  const g = data.game_state || data;
+  gameState = mapBackendGameState(g);
+  if (gameState.status === "lost") showOverlay("loss");
+  else if (gameState.status === "won") showOverlay("win");
+  renderArena();
+}
+
+function processMockTurn(playerChoice) {
+  hideOverlay("thinking");
+
+  const stepIndex = gameState.current_step;
+  const mockIndex = stepIndex % MOCK_TURN_PROGRESSION.length;
+  const nextTurn = MOCK_TURN_PROGRESSION[mockIndex];
+
+  // Simulate HP change
+  const hpDelta = nextTurn.hp_delta || 0;
+  gameState.player_hp = Math.max(0, gameState.player_hp + hpDelta);
+  gameState.current_step += 1;
+  gameState.current_situation = nextTurn.situation;
+  gameState.current_choices = nextTurn.choices;
+  gameState.current_actor_reactions = nextTurn.actor_reactions || [];
+
+  turnHistory.push({
+    step: stepIndex + 1,
+    player_choice: playerChoice,
+    hp_delta: hpDelta,
+  });
+
+  // Check win/loss
+  if (gameState.player_hp <= 0) {
+    gameState.status = "lost";
+    showOverlay("loss");
+  } else if (gameState.current_step >= gameState.max_steps) {
+    gameState.status = "won";
+    showOverlay("win");
+  }
+
+  renderArena();
+}
+
+function hideAllOverlays() {
+  Object.values(overlays).forEach((o) => o.classList.add("hidden"));
+}
+
+function showOverlay(name) {
+  hideAllOverlays();
+  overlays[name]?.classList.remove("hidden");
+}
+
+function hideOverlay(name) {
+  overlays[name]?.classList.add("hidden");
+}
+
+// ============ Debrief ============
+async function showDebrief() {
+  showScreen("debrief");
+  hideAllOverlays();
+
+  let d = MOCK_DEBRIEF;
+  const sid = gameState.session_id;
+  if (!useMockBackend && sid && sid !== "mock-001") {
+    debriefElements.outcome.textContent = "Loading debrief...";
+    debriefElements.summary.textContent = "";
+    debriefElements.turnList.innerHTML = "";
+    debriefElements.conceptsList.innerHTML = "";
+    try {
+      const res = await fetch(`${BACKEND_URL}/session/${sid}/debrief`);
+      if (res.ok) {
+        d = await res.json();
+      }
+    } catch (err) {
+      console.warn("Debrief API failed, using mock:", err);
+    }
+  }
+  debriefElements.outcome.textContent =
+    d.outcome === "won" ? "Session Complete — You Won!" : "Session Complete — Review Your Performance";
+  debriefElements.summary.textContent = d.summary;
+
+  debriefElements.turnList.innerHTML = d.turn_breakdowns
+    .map(
+      (t) => `
+    <li class="debrief-turn-item">
+      <strong>Step ${t.step}:</strong> ${escapeHtml(t.player_choice)}
+      <p class="turn-insight">${escapeHtml(t.compliance_insight)}</p>
+      ${t.hp_delta !== 0 ? `<span class="hp-delta">${t.hp_delta > 0 ? "+" : ""}${t.hp_delta} HP</span>` : ""}
+    </li>
+  `
+    )
+    .join("");
+
+  debriefElements.conceptsList.innerHTML = d.key_concepts
+    .map((c) => `<li>${escapeHtml(c)}</li>`)
+    .join("");
+}
+
+// ============ Event Listeners ============
+document.getElementById("start-btn").addEventListener("click", () => showScreen("setup"));
+document.getElementById("back-to-welcome-btn").addEventListener("click", () => showScreen("welcome"));
+document.getElementById("start-scenario-btn").addEventListener("click", startScenario);
+
+document.getElementById("retry-btn").addEventListener("click", async () => {
+  const sid = gameState.session_id;
+  if (!useMockBackend && sid && sid !== "mock-001") {
+    try {
+      const res = await fetch(`${BACKEND_URL}/session/${sid}/retry`, { method: "POST" });
+      if (res.ok) {
+        const g = await res.json();
+        gameState = mapBackendGameState(g);
+        hideAllOverlays();
+        enterArena();
+        return;
+      }
+    } catch (err) {
+      console.warn("Retry API failed, using local reset:", err);
+    }
+  }
+  resetGameState();
+  enterArena();
+});
+document.getElementById("debrief-loss-btn").addEventListener("click", () => showDebrief());
+document.getElementById("debrief-win-btn").addEventListener("click", () => showDebrief());
+
+document.getElementById("back-to-setup-btn").addEventListener("click", () => showScreen("setup"));

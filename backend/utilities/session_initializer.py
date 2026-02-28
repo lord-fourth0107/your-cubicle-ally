@@ -10,7 +10,7 @@ Depended on by: api/routes/session
 """
 
 import uuid
-from ..core.game_state import (
+from core.game_state import (
     GameState,
     SessionStatus,
     ActorInstance,
@@ -19,7 +19,7 @@ from ..core.game_state import (
     Choice,
     ActorReaction,
 )
-from .module_loader import ModuleLoader
+from utilities.module_loader import ModuleLoader
 
 
 class SessionInitializer:

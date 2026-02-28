@@ -23,8 +23,9 @@ import os
 import json
 from google import genai
 from google.genai import types
-from ..core.game_state import GameState, Evaluation
-from ..utilities.prompt_builder import PromptBuilder
+
+from core.game_state import GameState, Evaluation
+from utilities.prompt_builder import PromptBuilder
 
 
 class EvaluatorAgent:

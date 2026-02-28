@@ -13,8 +13,9 @@ Depends on: core/session_manager, utilities/session_initializer, agents/coach_ag
 """
 
 from fastapi import APIRouter, Depends, HTTPException
-from ...core.game_state import PlayerProfile, SessionStatus
-from ..deps import (
+
+from core.game_state import PlayerProfile, SessionStatus
+from api.deps import (
     get_session_manager,
     get_session_initializer,
     get_coach_agent,
@@ -22,7 +23,6 @@ from ..deps import (
 )
 
 router = APIRouter()
-
 
 # ---------------------------------------------------------------------------
 # Endpoints

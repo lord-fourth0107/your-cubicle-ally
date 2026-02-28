@@ -10,9 +10,10 @@ Depends on: core/orchestrator
 """
 
 from fastapi import APIRouter, Depends, HTTPException
-from ...core.game_state import SessionStatus
-from ...agents.guardrail_agent import GuardrailViolation
-from ..deps import get_orchestrator, get_session_manager
+
+from core.game_state import SessionStatus
+from agents.guardrail_agent import GuardrailViolation
+from api.deps import get_orchestrator, get_session_manager
 
 router = APIRouter()
 

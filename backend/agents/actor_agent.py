@@ -29,8 +29,9 @@ Depended on by: core/orchestrator
 import os
 from google import genai
 from google.genai import types
-from ..core.game_state import ActorInstance, ActorReaction, GameState, Message
-from ..utilities.prompt_builder import PromptBuilder
+
+from core.game_state import ActorInstance, ActorReaction, GameState, Message
+from utilities.prompt_builder import PromptBuilder
 
 
 class ActorAgent:

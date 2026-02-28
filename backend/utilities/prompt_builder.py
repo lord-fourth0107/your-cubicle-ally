@@ -20,9 +20,9 @@ Depends on: skills/skill_registry, utilities/module_loader, core/game_state
 Depended on by: all agent classes
 """
 
-from ..skills.skill_registry import SkillRegistry
-from ..core.game_state import ActorInstance, ScoringConfig
-from .module_loader import ModuleLoader, ScenarioData
+from skills.skill_registry import SkillRegistry
+from core.game_state import ActorInstance, ScoringConfig
+from utilities.module_loader import ModuleLoader, ScenarioData
 
 
 def _format_turn_history(turn_history: list) -> str:
