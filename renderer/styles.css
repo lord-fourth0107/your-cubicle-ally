@@ -201,6 +201,39 @@ body {
   border-bottom: 1px solid var(--border-light);
 }
 
+.arena-header-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.arena-tts-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 500;
+  background: #f0f0f5;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.arena-tts-toggle:hover {
+  background: #e8e8f0;
+}
+
+.arena-tts-toggle.muted {
+  opacity: 0.6;
+}
+
+.arena-tts-toggle .tts-icon {
+  font-size: 1rem;
+}
+
 .arena-module-label {
   font-weight: 600;
   font-size: 0.95rem;
@@ -245,6 +278,60 @@ body {
   inset: 0;
   background-size: cover;
   background-position: center;
+  overflow: hidden;
+}
+
+/* Ken Burns: subtle pan/zoom on single image */
+.world-environment.env-kenburns {
+  animation: envKenBurns 20s ease-in-out infinite alternate;
+}
+
+@keyframes envKenBurns {
+  0% {
+    transform: scale(1) translate(0, 0);
+  }
+  100% {
+    transform: scale(1.05) translate(1%, 1%);
+  }
+}
+
+/* Multi-frame environment: crossfade */
+.world-environment.env-animated {
+  background-image: none;
+}
+
+.env-frame {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  opacity: 0;
+}
+
+.env-frame-0 {
+  animation: envFrame0 10s ease-in-out infinite;
+}
+
+.env-frame-1 {
+  animation: envFrame1 10s ease-in-out infinite;
+}
+
+@keyframes envFrame0 {
+  0%, 48% {
+    opacity: 1;
+  }
+  52%, 100% {
+    opacity: 0;
+  }
+}
+
+@keyframes envFrame1 {
+  0%, 48% {
+    opacity: 0;
+  }
+  52%, 100% {
+    opacity: 1;
+  }
 }
 
 .world-sprites {
@@ -280,8 +367,86 @@ body {
 .world-sprite-wrapper.speaking {
   position: relative;
 }
+/* Multi-frame sprite animation */
+.sprite-animated .sprite-frames {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.sprite-animated .sprite-frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+}
+
+/* Each frame visible for its quarter of the 4s cycle */
+.sprite-animated[data-frames="4"] .sprite-frame[data-frame="0"] {
+  animation: spriteF0 4s infinite;
+}
+
+.sprite-animated[data-frames="4"] .sprite-frame[data-frame="1"] {
+  animation: spriteF1 4s infinite;
+}
+
+.sprite-animated[data-frames="4"] .sprite-frame[data-frame="2"] {
+  animation: spriteF2 4s infinite;
+}
+
+.sprite-animated[data-frames="4"] .sprite-frame[data-frame="3"] {
+  animation: spriteF3 4s infinite;
+}
+
+@keyframes spriteF0 {
+  0%, 24% {
+    opacity: 1;
+  }
+  25%, 100% {
+    opacity: 0;
+  }
+}
+
+@keyframes spriteF1 {
+  0%, 24% {
+    opacity: 0;
+  }
+  25%, 49% {
+    opacity: 1;
+  }
+  50%, 100% {
+    opacity: 0;
+  }
+}
+
+@keyframes spriteF2 {
+  0%, 49% {
+    opacity: 0;
+  }
+  50%, 74% {
+    opacity: 1;
+  }
+  75%, 100% {
+    opacity: 0;
+  }
+}
+
+@keyframes spriteF3 {
+  0%, 74% {
+    opacity: 0;
+  }
+  75%, 100% {
+    opacity: 1;
+  }
+}
+
 .world-sprite-wrapper.speaking .world-sprite {
   transform: scale(1.08);
+}
+
+.world-sprite-wrapper.speaking {
   animation: spriteSpeakPulse 1.2s ease-in-out infinite;
 }
 @keyframes spriteSpeakPulse {

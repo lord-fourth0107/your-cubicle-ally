@@ -12,7 +12,7 @@ import base64
 import io
 import re
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 
 _genai_client = None
 
@@ -37,8 +37,8 @@ def _safe_filename(s: str) -> str:
     return re.sub(r"[^a-zA-Z0-9_-]", "_", s)[:64]
 
 
-def _cache_path(category: str, key: str) -> Path:
-    return _get_cache_dir() / f"{category}_{key}.png"
+def _cache_path(category: str, key: str, ext: str = ".png") -> Path:
+    return _get_cache_dir() / f"{category}_{key}{ext}"
 
 
 def _load_from_cache(path: Path) -> Optional[str]:
@@ -107,6 +107,45 @@ def _generate_image_gemini(client, types, prompt: str, aspect_hint: str = "16:9"
     return None
 
 
+def generate_environment_animation_frames(
+    module_id: str, scenario_setting: str, scenario_id: str
+) -> List[str]:
+    """
+    Generate 2 cached environment frames for subtle crossfade. Reused when returning.
+    Returns list of base64 data URLs.
+    """
+    cache_key = f"{_safe_filename(scenario_id)}_{_safe_filename(module_id)}"
+    frames = []
+    for i in range(2):
+        path = _cache_path("env_anim", f"{cache_key}_f{i}")
+        cached = _load_from_cache(path)
+        if cached:
+            frames.append(cached)
+    if len(frames) == 2:
+        return frames
+
+    client_info = _get_genai_client()
+    if client_info[0] != "genai":
+        return []
+
+    model = os.getenv("GEMINI_IMAGE_MODEL", "gemini-2.0-flash-exp-image-generation")
+    prompts = [
+        f"Professional workplace illustration: {scenario_setting}. Soft isometric view, warm lighting. Frame 1: standard angle.",
+        f"Same scene as before: {scenario_setting}. Slightly different camera angle or lighting. Consistent style. Frame 2.",
+    ]
+    _, client, types = client_info
+    for i, prompt in enumerate(prompts):
+        data = _generate_image_gemini(client, types, prompt)
+        if data:
+            path = _cache_path("env_anim", f"{cache_key}_f{i}")
+            _save_to_cache(path, data)
+            frames.append(f"data:image/png;base64,{base64.b64encode(data).decode()}")
+
+    if len(frames) == 1:
+        frames.append(frames[0])
+    return frames[:2]
+
+
 def generate_environment_image(module_id: str, scenario_setting: str) -> Optional[str]:
     """
     Generate an environment/setting image for the scenario.
@@ -135,6 +174,80 @@ def generate_environment_image(module_id: str, scenario_setting: str) -> Optiona
         _save_to_cache(cache_path, data)
         return f"data:image/png;base64,{base64.b64encode(data).decode()}"
     return None
+
+
+def _generate_animation_frames_gemini(client, types, actor_id: str, name: str, role: str) -> List[bytes]:
+    """Generate 4 animation frames in one request. Returns list of image bytes."""
+    model = os.getenv("GEMINI_IMAGE_MODEL", "gemini-2.0-flash-exp-image-generation")
+    prompt = (
+        f"Generate exactly 4 frames of the same character for an idle animation. "
+        f"Character: {name}, {role}. "
+        "Frame 1: neutral expression, face camera. "
+        "Frame 2: very slight nod, friendly acknowledgment. "
+        "Frame 3: subtle head tilt to the side, listening. "
+        "Frame 4: back to neutral, same as frame 1. "
+        "Keep the SAME character, SAME clothing, SAME style in all 4 frames. "
+        "Flat illustration style, circular avatar composition, workplace setting. "
+        "Corporate training simulation. No text. Each frame square 1:1."
+    )
+    try:
+        response = client.models.generate_content(
+            model=model,
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_modalities=["TEXT", "IMAGE"],
+            ),
+        )
+        frames = []
+        if response.candidates:
+            for part in response.candidates[0].content.parts:
+                if hasattr(part, "inline_data") and part.inline_data and part.inline_data.data:
+                    frames.append(part.inline_data.data)
+        return frames[:4]  # cap at 4
+    except Exception as e:
+        print(f"[sprite_generator] Animation frames failed: {e}")
+        return []
+
+
+def generate_actor_animation_frames(
+    actor_id: str, name: str, role: str, scenario_id: str
+) -> List[str]:
+    """
+    Generate 4 cached animation frames for an actor. Reused when returning to same scenario.
+    Returns list of base64 data URLs, or empty if failed.
+    """
+    cache_key = f"{_safe_filename(scenario_id)}_{_safe_filename(actor_id)}"
+    frames = []
+    for i in range(4):
+        path = _cache_path("anim", f"{cache_key}_f{i}")
+        cached = _load_from_cache(path)
+        if cached:
+            frames.append(cached)
+    if len(frames) == 4:
+        return frames
+
+    client_info = _get_genai_client()
+    if client_info[0] != "genai":
+        return []
+
+    _, client, types = client_info
+    raw_frames = _generate_animation_frames_gemini(client, types, actor_id, name, role)
+    if len(raw_frames) < 2:
+        # Fallback: use single sprite for all frames
+        single = generate_actor_sprite(actor_id, name, role)
+        if single:
+            return [single] * 4
+        return []
+
+    for i, data in enumerate(raw_frames[:4]):
+        path = _cache_path("anim", f"{cache_key}_f{i}")
+        _save_to_cache(path, data)
+        frames.append(f"data:image/png;base64,{base64.b64encode(data).decode()}")
+
+    # Pad to 4 frames for smooth loop
+    while len(frames) < 4 and frames:
+        frames.append(frames[-1])
+    return frames[:4]
 
 
 def generate_actor_sprite(actor_id: str, name: str, role: str) -> Optional[str]:
