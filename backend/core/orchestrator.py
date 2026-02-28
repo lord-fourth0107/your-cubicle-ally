@@ -92,8 +92,8 @@ class Orchestrator:
             player_choice=player_choice,
             state=state,
         )
-        # Clamp evaluator output to valid bounds (never crash on OOB values)
-        evaluation = self.guardrail.fix_evaluator_output(evaluation)
+        # Clamp evaluator output to the scenario's configured HP delta bounds
+        evaluation = self.guardrail.fix_evaluator_output(evaluation, state.scoring)
 
         # Step 2: Scenario Agent decides turn order, directives, next situation + choices
         scenario_output = await self.scenario.advance(
@@ -130,6 +130,7 @@ class Orchestrator:
             evaluation=evaluation,
             hp_delta=evaluation.hp_delta,
             narrative_branch=scenario_output.branch_taken,
+            resolved_early=scenario_output.early_resolution and state.allow_early_resolution,
         )
 
         updated_state = self.session_manager.apply_turn(session_id, turn)

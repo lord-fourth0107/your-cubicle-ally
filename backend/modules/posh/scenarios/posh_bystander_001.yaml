@@ -1,7 +1,17 @@
 id: posh_bystander_001
 module_id: posh
 title: "The Uncomfortable Joke"
-max_steps: 6
+max_steps: 10
+starting_hp: 100
+allow_early_resolution: true
+
+# HP delta bands by score tier — tune these to adjust scenario difficulty.
+# Defaults (shown here) are learner-friendly: good choices heal, bad choices sting but don't kill.
+scoring:
+  great: {min: 5,   max: 15}   # score >= 80: direct intervention, formal escalation
+  good:  {min: -5,  max: 0}    # score 50-79: partial / indirect action
+  poor:  {min: -15, max: -5}   # score 20-49: avoidance, deflection
+  bad:   {min: -25, max: -15}  # score < 20:  endorses or amplifies the behaviour
 
 rubric:
   goal: >

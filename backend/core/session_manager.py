@@ -111,7 +111,7 @@ class SessionManager:
 
         if state.player_hp <= 0 or (turn.evaluation and turn.evaluation.is_critical_failure):
             state.status = SessionStatus.LOST
-        elif state.current_step >= state.max_steps:
+        elif state.current_step >= state.max_steps or turn.resolved_early:
             state.status = SessionStatus.WON
 
         self._cache[session_id] = state
@@ -125,7 +125,7 @@ class SessionManager:
         Actor memory is cleared here; the Orchestrator recreates ChatSessions.
         """
         state = self.get(session_id)
-        state.player_hp = 100
+        state.player_hp = state.starting_hp
         state.current_step = 0
         state.history = []
         state.status = SessionStatus.ACTIVE

@@ -12,7 +12,33 @@ Depended on by: session_manager, all agents, all API routes
 
 from enum import Enum
 from typing import Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+
+class HpDeltaRange(BaseModel):
+    """Min/max HP delta for a score band. min is always ≤ max."""
+    min: int
+    max: int
+
+
+class ScoringConfig(BaseModel):
+    """
+    Per-scenario HP delta bands keyed by score tier.
+    Defaults reflect a learner-friendly difficulty.
+    Scenario YAML authors can override individual bands to tune difficulty.
+    """
+    great: HpDeltaRange = Field(default_factory=lambda: HpDeltaRange(min=5, max=15))   # score ≥ 80
+    good:  HpDeltaRange = Field(default_factory=lambda: HpDeltaRange(min=-5, max=0))   # score 50–79
+    poor:  HpDeltaRange = Field(default_factory=lambda: HpDeltaRange(min=-15, max=-5)) # score 20–49
+    bad:   HpDeltaRange = Field(default_factory=lambda: HpDeltaRange(min=-25, max=-15))# score < 20
+
+    @property
+    def absolute_min(self) -> int:
+        return self.bad.min
+
+    @property
+    def absolute_max(self) -> int:
+        return self.great.max
 
 
 class SessionStatus(str, Enum):
@@ -49,6 +75,7 @@ class Turn(BaseModel):
     evaluation: Optional[Evaluation] = None
     hp_delta: int = 0
     narrative_branch: str = ""
+    resolved_early: bool = False
 
 
 class Message(BaseModel):
@@ -82,7 +109,10 @@ class GameState(BaseModel):
     scenario_id: str
     actors: list[ActorInstance]
     current_step: int = 0
-    max_steps: int = 6
+    max_steps: int = 10
+    starting_hp: int = 100
     player_hp: int = 100
+    scoring: ScoringConfig = Field(default_factory=ScoringConfig)
+    allow_early_resolution: bool = True
     history: list[Turn] = []
     status: SessionStatus = SessionStatus.ACTIVE

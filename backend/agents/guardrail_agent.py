@@ -23,7 +23,7 @@ import logging
 from typing import TYPE_CHECKING
 from google import genai
 from google.genai import types
-from core.game_state import GameState, Evaluation
+from core.game_state import GameState, Evaluation, ScoringConfig
 
 if TYPE_CHECKING:
     from agents.scenario_agent import ScenarioOutput
@@ -190,11 +190,17 @@ class GuardrailAgent:
     # Evaluator output — OUTBOUND fix
     # ------------------------------------------------------------------
 
-    def fix_evaluator_output(self, evaluation: Evaluation) -> Evaluation:
+    def fix_evaluator_output(
+        self, evaluation: Evaluation, scoring: ScoringConfig | None = None
+    ) -> Evaluation:
         """
         Clamp evaluator output to valid ranges rather than crashing.
+        Uses the scenario's ScoringConfig for hp_delta bounds when provided.
         Logs a warning whenever a value is out of bounds.
         """
+        if scoring is None:
+            scoring = ScoringConfig()
+
         updates: dict = {}
 
         score = evaluation.score
@@ -202,10 +208,14 @@ class GuardrailAgent:
             logger.warning("Evaluator score out of range (%d) — clamping to [0, 100]", score)
             updates["score"] = max(0, min(100, score))
 
+        hp_min = scoring.absolute_min
+        hp_max = scoring.absolute_max
         hp_delta = evaluation.hp_delta
-        if not (-40 <= hp_delta <= 10):
-            logger.warning("hp_delta out of bounds (%d) — clamping to [-40, 10]", hp_delta)
-            updates["hp_delta"] = max(-40, min(10, hp_delta))
+        if not (hp_min <= hp_delta <= hp_max):
+            logger.warning(
+                "hp_delta out of bounds (%d) — clamping to [%d, %d]", hp_delta, hp_min, hp_max
+            )
+            updates["hp_delta"] = max(hp_min, min(hp_max, hp_delta))
 
         if not evaluation.reasoning or len(evaluation.reasoning.strip()) < 5:
             logger.warning("Evaluator reasoning missing or too short — using fallback")

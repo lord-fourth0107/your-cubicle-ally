@@ -15,7 +15,8 @@ Depended on by: session_initializer, prompt_builder
 import yaml
 from functools import lru_cache
 from pathlib import Path
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from core.game_state import ScoringConfig
 
 
 MODULES_DIR = Path(__file__).parent.parent / "modules"
@@ -68,7 +69,10 @@ class ScenarioData(BaseModel):
     id: str
     module_id: str
     title: str
-    max_steps: int
+    max_steps: int = 10
+    starting_hp: int = 100
+    allow_early_resolution: bool = True
+    scoring: ScoringConfig = Field(default_factory=ScoringConfig)
     rubric: Rubric
     entry_turn: EntryTurnData
     actors: list[ActorData]
