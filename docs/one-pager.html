@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Your Cubicle Ally — Architecture One-Pager</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0a0a0f;
+      --surface:   #111118;
+      --border:    #1e1e2e;
+      --border-hi: #2e2e4e;
+      --text:      #e2e2f0;
+      --muted:     #6b6b8a;
+      --google-blue:  #4285f4;
+      --google-red:   #ea4335;
+      --google-yellow:#fbbc04;
+      --google-green: #34a853;
+      --accent:    #7c6af7;
+      --accent-dim:#2a2250;
+      --gem:       #4285f4;
+      --gem-dim:   #0d1f3c;
+    }
+
+    html, body {
+      width: 100%; min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    /* ── layout ── */
+    .page {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 40px 32px 56px;
+      display: grid;
+      gap: 28px;
+    }
+
+    /* ── header ── */
+    .header {
+      display: flex;
+      align-items: baseline;
+      gap: 16px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 20px;
+    }
+    .header h1 {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+    .header .sub {
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 400;
+    }
+    .badge {
+      margin-left: auto;
+      font-size: 11px;
+      font-weight: 600;
+      background: var(--accent-dim);
+      color: var(--accent);
+      border: 1px solid var(--accent);
+      border-radius: 20px;
+      padding: 3px 12px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    /* ── section labels ── */
+    .section-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+
+    /* ── cards ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+    }
+    .card.highlighted {
+      border-color: var(--border-hi);
+    }
+
+    /* ─────────────────────────────────────────────
+       ARCHITECTURE DIAGRAM
+    ───────────────────────────────────────────── */
+    .arch-card {
+      padding: 24px 28px;
+    }
+
+    .arch-diagram {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      align-items: center;
+    }
+
+    /* rows */
+    .arch-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      width: 100%;
+    }
+
+    /* layer wrapper — full-width pill */
+    .arch-layer {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border: 1px solid var(--border-hi);
+      border-radius: 10px;
+      padding: 14px 20px;
+      width: 100%;
+      position: relative;
+    }
+    .arch-layer .layer-label {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      color: var(--muted);
+      white-space: nowrap;
+      min-width: 70px;
+    }
+    .arch-layer .layer-content {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    /* individual boxes inside a layer */
+    .box {
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 11.5px;
+      font-weight: 500;
+      white-space: nowrap;
+      border: 1px solid transparent;
+    }
+    .box.neutral  { background: #16161f; border-color: var(--border-hi); color: var(--text); }
+    .box.blue     { background: #0d1f3c; border-color: #2b4a8a; color: #89b4fa; }
+    .box.purple   { background: var(--accent-dim); border-color: #4a3a9a; color: #b4a0ff; }
+    .box.green    { background: #0d2a18; border-color: #1f6a38; color: #7dd89a; }
+    .box.yellow   { background: #2a2000; border-color: #6a5000; color: #f0c040; }
+    .box.red      { background: #2a0d0d; border-color: #6a2020; color: #f08080; }
+    .box.gem      { background: var(--gem-dim); border-color: #2b5aaa; color: #7eb8ff; }
+
+    /* connector arrows */
+    .arch-connector {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      padding: 4px 0;
+    }
+    .arch-connector .line {
+      width: 1px;
+      height: 18px;
+      background: var(--border-hi);
+    }
+    .arch-connector .label {
+      font-size: 9px;
+      color: var(--muted);
+      font-family: 'JetBrains Mono', monospace;
+      background: var(--bg);
+      padding: 0 6px;
+      border-radius: 3px;
+      border: 1px solid var(--border);
+    }
+
+    /* pipeline strip */
+    .pipeline {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      width: 100%;
+      margin-top: 4px;
+    }
+    .pipeline-step {
+      flex: 1;
+      text-align: center;
+      padding: 8px 4px;
+      border: 1px solid var(--border-hi);
+      border-right: none;
+      font-size: 10.5px;
+      font-weight: 500;
+      background: #13131d;
+      color: var(--text);
+      position: relative;
+    }
+    .pipeline-step:first-child { border-radius: 6px 0 0 6px; }
+    .pipeline-step:last-child  { border-radius: 0 6px 6px 0; border-right: 1px solid var(--border-hi); }
+    .pipeline-step .ps-sub {
+      display: block;
+      font-size: 8.5px;
+      color: var(--muted);
+      font-weight: 400;
+      margin-top: 2px;
+    }
+    .pipeline-arrow {
+      font-size: 10px;
+      color: var(--muted);
+      flex-shrink: 0;
+      z-index: 1;
+      margin: 0 -1px;
+      background: var(--bg);
+      padding: 0 2px;
+    }
+
+    /* ─────────────────────────────────────────────
+       BOTTOM TWO COLUMNS
+    ───────────────────────────────────────────── */
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    /* pill list */
+    .pill-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .pill-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+    .pill-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .pill-text strong {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .pill-text span {
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    /* google color dots */
+    .g-b { background: rgba(66,133,244,0.15); color: var(--google-blue); border: 1px solid rgba(66,133,244,0.3); }
+    .g-r { background: rgba(234,67,53,0.15);  color: var(--google-red);  border: 1px solid rgba(234,67,53,0.3); }
+    .g-y { background: rgba(251,188,4,0.15);  color: var(--google-yellow);border: 1px solid rgba(251,188,4,0.3); }
+    .g-g { background: rgba(52,168,83,0.15);  color: var(--google-green); border: 1px solid rgba(52,168,83,0.3); }
+    .g-p { background: rgba(124,106,247,0.15);color: var(--accent);       border: 1px solid rgba(124,106,247,0.3);}
+
+    /* agentic tag grid */
+    .tag-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .tag {
+      border-radius: 6px;
+      padding: 7px 12px;
+      font-size: 11px;
+      border: 1px solid transparent;
+    }
+    .tag strong {
+      display: block;
+      font-size: 11.5px;
+      font-weight: 600;
+      margin-bottom: 1px;
+    }
+    .tag span {
+      font-size: 10.5px;
+      opacity: 0.7;
+    }
+    .tag.t-purple { background: #1a1530; border-color: #3a2a70; color: #c4b0ff; }
+    .tag.t-blue   { background: #0d1f3c; border-color: #1e3a6e; color: #90c0ff; }
+    .tag.t-green  { background: #0a2018; border-color: #1a5030; color: #80d8a0; }
+    .tag.t-orange { background: #251508; border-color: #5a3010; color: #f0a060; }
+    .tag.t-red    { background: #200d0d; border-color: #501818; color: #f09090; }
+    .tag.t-teal   { background: #081e1e; border-color: #104040; color: #70d0d0; }
+
+    /* footer */
+    .footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-top: 1px solid var(--border);
+      padding-top: 16px;
+      font-size: 10.5px;
+      color: var(--muted);
+    }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+
+    @media print {
+      body { background: white; color: #111; }
+      .page { padding: 20px; }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ── HEADER ── -->
+  <div class="header">
+    <h1>Your Cubicle Ally</h1>
+    <span class="sub">System Architecture</span>
+    <div class="badge">Hackathon 2026</div>
+  </div>
+
+  <!-- ── ARCHITECTURE ── -->
+  <div class="card arch-card highlighted">
+    <div class="section-label">Architecture — Birds Eye View</div>
+
+    <div class="arch-diagram">
+
+      <!-- LAYER 1: Desktop Shell -->
+      <div class="arch-layer" style="border-color: #2a2a4a; background: #0e0e1a;">
+        <span class="layer-label">Desktop<br/>Shell</span>
+        <div class="layer-content">
+          <span class="box purple">Electron 28</span>
+          <span class="box neutral mono" style="font-size:10px;">server-manager.ts — spawns backend child process</span>
+        </div>
+        <div style="margin-left:auto; display:flex; gap:8px; align-items:center;">
+          <span class="box neutral">React + TypeScript</span>
+          <span class="box neutral">Zustand</span>
+          <span class="box neutral">frontend-contract types</span>
+        </div>
+      </div>
+
+      <!-- connector -->
+      <div class="arch-connector">
+        <div class="line"></div>
+        <div class="label">HTTP · localhost:8000</div>
+        <div class="line"></div>
+      </div>
+
+      <!-- LAYER 2: API -->
+      <div class="arch-layer" style="border-color: #2a3a5a; background: #0d1520;">
+        <span class="layer-label">API<br/>Layer</span>
+        <div class="layer-content">
+          <span class="box blue">FastAPI</span>
+          <span class="box blue">Pydantic v2</span>
+          <span class="box neutral mono" style="font-size:10px;">/session  /turn/submit  /modules  /world/generate  /tts</span>
+        </div>
+      </div>
+
+      <!-- connector -->
+      <div class="arch-connector">
+        <div class="line"></div>
+        <div class="line"></div>
+      </div>
+
+      <!-- LAYER 3: Orchestrator + Pipeline -->
+      <div class="arch-layer" style="border-color: #3a2a6a; background: #100e1e; flex-direction: column; align-items: flex-start; gap: 12px;">
+        <div style="display:flex; align-items:center; gap:12px; width:100%;">
+          <span class="layer-label">Orchestrator<br/>& Agents</span>
+          <span class="box purple" style="font-size:10px;">core/orchestrator.py — custom turn pipeline, no framework</span>
+        </div>
+        <!-- pipeline -->
+        <div class="pipeline">
+          <div class="pipeline-step" style="border-color:#4a3a8a; background:#14102a;">
+            Guardrail
+            <span class="ps-sub">input safety</span>
+          </div>
+          <div class="pipeline-arrow">▶</div>
+          <div class="pipeline-step">
+            Evaluator
+            <span class="ps-sub">0–100 score</span>
+          </div>
+          <div class="pipeline-arrow">▶</div>
+          <div class="pipeline-step">
+            PlayerDrift
+            <span class="ps-sub">perf tracking</span>
+          </div>
+          <div class="pipeline-arrow">▶</div>
+          <div class="pipeline-step">
+            Scenario Agent
+            <span class="ps-sub">narrative GM</span>
+          </div>
+          <div class="pipeline-arrow">▶</div>
+          <div class="pipeline-step">
+            Guardrail
+            <span class="ps-sub">output clamp</span>
+          </div>
+          <div class="pipeline-arrow">▶</div>
+          <div class="pipeline-step">
+            Actor Agents ×N
+            <span class="ps-sub">in-character dialogue</span>
+          </div>
+          <div class="pipeline-arrow">▶</div>
+          <div class="pipeline-step">
+            Session Mgr
+            <span class="ps-sub">persist state</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- connector -->
+      <div class="arch-connector">
+        <div class="line"></div>
+        <div class="line"></div>
+      </div>
+
+      <!-- LAYER 4: Storage + Content -->
+      <div class="arch-row" style="gap:12px;">
+        <div class="arch-layer" style="flex:1; border-color:#1a3a2a; background:#0a1812;">
+          <span class="layer-label">Storage</span>
+          <div class="layer-content">
+            <span class="box green">SQLite</span>
+            <span class="box neutral mono" style="font-size:10px;">sessions.db — full GameState JSON blob + in-memory cache</span>
+          </div>
+        </div>
+        <div class="arch-layer" style="flex:1; border-color:#3a2a1a; background:#181008;">
+          <span class="layer-label">Content</span>
+          <div class="layer-content">
+            <span class="box yellow">YAML Scenarios</span>
+            <span class="box yellow">YAML Skills</span>
+            <span class="box neutral mono" style="font-size:10px;">12 scenarios · 4 modules · 6 skills</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- connector -->
+      <div class="arch-connector">
+        <div class="line"></div>
+        <div class="line"></div>
+      </div>
+
+      <!-- LAYER 5: Google AI -->
+      <div class="arch-layer" style="border-color: #1e3a6e; background: #080f1e;">
+        <span class="layer-label" style="color:#4285f4;">Google<br/>Gemini</span>
+        <div class="layer-content">
+          <span class="box gem">gemini-2.0-flash</span>
+          <span class="box gem">Chat API (persistent memory)</span>
+          <span class="box gem">JSON mode</span>
+          <span class="box gem">gemini-2.0-flash-exp-image-generation</span>
+          <span class="box gem">gemini-2.5-flash-preview-tts</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── BOTTOM TWO COLUMNS ── -->
+  <div class="two-col">
+
+    <!-- LEFT: Google AI Tech -->
+    <div class="card">
+      <div class="section-label">Google AI — What We Used</div>
+      <div class="pill-list">
+
+        <div class="pill-item">
+          <div class="pill-icon g-b">💬</div>
+          <div class="pill-text">
+            <strong>Gemini Chat API — Persistent Sessions</strong>
+            <span>One Chat object per actor per game session. Character memory lives inside Gemini natively.</span>
+          </div>
+        </div>
+
+        <div class="pill-item">
+          <div class="pill-icon g-b">{ }</div>
+          <div class="pill-text">
+            <strong>Gemini JSON Mode (<code style="font-size:10px;">response_mime_type</code>)</strong>
+            <span>Structured output for Evaluator, Scenario, Coach, and Guardrail agents. No parsing gymnastics.</span>
+          </div>
+        </div>
+
+        <div class="pill-item">
+          <div class="pill-icon g-r">🖼</div>
+          <div class="pill-text">
+            <strong>Gemini Image Generation</strong>
+            <span>Environment backgrounds (2-frame crossfade) + actor sprites (4-frame idle loops) via IMAGE modality.</span>
+          </div>
+        </div>
+
+        <div class="pill-item">
+          <div class="pill-icon g-y">🔊</div>
+          <div class="pill-text">
+            <strong>Gemini Native TTS</strong>
+            <span>Actor voice lines via AUDIO modality + SpeechConfig. Gender-aware voice selection from actor persona.</span>
+          </div>
+        </div>
+
+        <div class="pill-item">
+          <div class="pill-icon g-g">⚡</div>
+          <div class="pill-text">
+            <strong>gemini-2.0-flash — All Text Agents</strong>
+            <span>Low-latency model for all 5 agents. Configurable via <code style="font-size:10px;">GEMINI_MODEL</code> env var.</span>
+          </div>
+        </div>
+
+        <div class="pill-item">
+          <div class="pill-icon g-p">🔧</div>
+          <div class="pill-text">
+            <strong>System Instructions + Few-Shot Grounding</strong>
+            <span>Persona, role, skills, and rubric examples are locked in at session start via structured system prompts.</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- RIGHT: Agentic Concepts -->
+    <div class="card">
+      <div class="section-label">Agentic Concepts Used</div>
+      <div class="tag-grid">
+
+        <div class="tag t-purple">
+          <strong>Multi-Agent Pipeline</strong>
+          <span>5 specialized agents, each with one job. Custom Orchestrator sequences them per turn.</span>
+        </div>
+
+        <div class="tag t-blue">
+          <strong>Persistent Actor Memory</strong>
+          <span>Each actor's Chat history survives across all turns — no external memory store.</span>
+        </div>
+
+        <div class="tag t-green">
+          <strong>Structured Agent Output</strong>
+          <span>JSON mode enforces typed contracts between agents and the game engine.</span>
+        </div>
+
+        <div class="tag t-orange">
+          <strong>Input + Output Guardrails</strong>
+          <span>Guardrail agent runs twice per turn — before player input reaches agents, and before outputs reach the game.</span>
+        </div>
+
+        <div class="tag t-purple">
+          <strong>Dynamic System Prompts</strong>
+          <span>PromptBuilder assembles actor instructions at runtime from YAML persona + skill injections.</span>
+        </div>
+
+        <div class="tag t-blue">
+          <strong>Composable Skill System</strong>
+          <span>Actor behaviour is assembled from named skill primitives — behavioural bundles, not hardcoded logic.</span>
+        </div>
+
+        <div class="tag t-teal">
+          <strong>Narrative Arc Injection</strong>
+          <span>Orchestrator maps current step % → OPENING / MID / ESCALATION / CLOSING and injects phase cues.</span>
+        </div>
+
+        <div class="tag t-green">
+          <strong>Player Drift Detection</strong>
+          <span>Rolling performance metrics (consecutive poor turns, HP trend) feed corrective guidance to Scenario Agent.</span>
+        </div>
+
+        <div class="tag t-red">
+          <strong>Few-Shot Grounded Evaluation</strong>
+          <span>Evaluator is grounded in scenario-specific rubric examples — not free-form LLM judgment.</span>
+        </div>
+
+        <div class="tag t-orange">
+          <strong>Multimodal Generation</strong>
+          <span>Same SDK, three modalities: TEXT for agents, IMAGE for sprites, AUDIO for actor voices.</span>
+        </div>
+
+        <div class="tag t-teal">
+          <strong>End-of-Session Debrief Agent</strong>
+          <span>Coach Agent receives full game history and produces a structured, turn-by-turn compliance debrief.</span>
+        </div>
+
+        <div class="tag t-red">
+          <strong>Content-as-Config (YAML)</strong>
+          <span>Scenarios and skills live in YAML. New compliance module = new file. Zero engine changes.</span>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── FOOTER ── -->
+  <div class="footer">
+    <span>Your Cubicle Ally · Hackathon 2026</span>
+    <span class="mono">FastAPI · Electron · React · google-genai · SQLite · Textual</span>
+    <span>5 agents · 12 scenarios · 4 modules · 3 Gemini modalities</span>
+  </div>
+
+</div>
+</body>
+</html>
