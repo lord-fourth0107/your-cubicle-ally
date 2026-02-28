@@ -1,0 +1,94 @@
+id: ethics_favor_for_a_friend_001
+module_id: ethics
+title: "Favor for a Friend"
+max_steps: 6
+
+rubric:
+  goal: >
+    Resolve personal-pressure conflict in procurement by protecting fairness,
+    transparency, and auditability. Gold standard: refuse any bid intelligence,
+    declare conflict if needed, maintain equal-information rule.
+  key_concepts:
+    - Procurement integrity
+    - Information symmetry
+    - Conflict declaration
+    - Fiduciary duty
+    - Equal access rules
+  few_shot_examples:
+    - choice: "Refuse to share any bid intelligence; restate process fairness"
+      score: 95
+      reasoning: >
+        Firm boundary. Protects procurement integrity.
+        One message could quietly distort the outcome.
+    - choice: "Declare conflict and transfer decision authority to another lead"
+      score: 90
+      reasoning: >
+        Recusal protects process. Removes Alex from situation where
+        relationship could influence or appear to influence outcome.
+    - choice: "Tell Priyank only whether he is 'in the ballpark'"
+      score: 28
+      reasoning: >
+        Any hint violates information symmetry. "Ballpark" is still
+        bid intelligence. Breaks fairness for all other bidders.
+    - choice: "Offer to debrief all vendors equally after the decision"
+      score: 72
+      reasoning: >
+        Structured post-bid support available to all. Does not share
+        intelligence now. Good alternative if Alex retains role.
+
+entry_turn:
+  situation: >
+    You are Alex, procurement lead for a high-value facilities contract.
+    Final bids are in a sealed process. Your phone lights up: Priyank, your
+    childhood friend and one of the bidders, messages: "I do not need exact
+    numbers. Just tell me if we are close. I cannot lose this one." Lata from
+    compliance is in the next cubicle preparing the opening meeting: "Fairness
+    depends on information symmetry. No bidder gets private hints." Priyank
+    calls—payroll is due in ten days. "You know I can deliver. Help me avoid
+    a technical loss." Lata walks over with bid envelopes: "All conflict
+    declarations current?"
+  turn_order:
+    - priyank
+    - lata
+  directives:
+    priyank: "Frame request as friendship; emphasize financial stakes."
+    lata: "Reinforce process fairness and conflict declarations."
+  actor_reactions:
+    - actor_id: priyank
+      dialogue: "One sentence. Are we close or not? I am not asking you to change the outcome."
+    - actor_id: lata
+      dialogue: "Alex, we are about to open. Any last declarations?"
+  choices_offered:
+    - label: "Refuse any bid intelligence; restate process fairness"
+      valence: positive
+    - label: "Declare conflict and transfer decision authority"
+      valence: neutral
+    - label: "Tell Priyank only if he is 'in the ballpark'"
+      valence: negative
+
+actors:
+  - actor_id: priyank
+    persona: >
+      Friend and bidder. Personal relationship inside formal procurement.
+      Persuasive, emotionally urgent, outcome-driven.
+    role: >
+      One of the vendors. Childhood friend with financial pressure.
+    personality: >
+      Strained, frames request as small fairness hint.
+      Appeals to loyalty and history.
+    skills:
+      - social_pressure
+      - empathy
+    tools: []
+
+  - actor_id: lata
+    persona: >
+      Compliance partner. Process integrity owner.
+      Neutral, firm, procedural.
+    role: >
+      Ensures fairness and declarations. Prepares bid opening.
+    personality: >
+      Calm, policy-focused. Reinforces rules without confrontation.
+    skills:
+      - authority
+    tools: []

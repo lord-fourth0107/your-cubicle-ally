@@ -1,0 +1,95 @@
+id: escalation_low_performer_vs_bias_001
+module_id: escalation
+title: "Low Performer vs Bias"
+max_steps: 6
+
+rubric:
+  goal: >
+    Resolve performance-vs-bias conflict by applying evidence-based
+    evaluation and fair-opportunity checks before escalation.
+    Gold standard: require concrete examples, audit opportunity
+    distribution, avoid punitive labeling without evidence.
+  key_concepts:
+    - Evidence-based performance review
+    - Bias in feedback
+    - Opportunity allocation
+    - Vague vs concrete feedback
+    - Fair improvement planning
+  few_shot_examples:
+    - choice: "Pause PIP; request behavior-specific evidence tied to role expectations"
+      score: 92
+      reasoning: >
+        Evidence reset. Vague claims like "not assertive enough"
+        need concrete examples. Protects against biased action.
+    - choice: "Review assignment distribution and visibility access across peers"
+      score: 88
+      reasoning: >
+        Opportunity audit. Bias often appears as uneven
+        assignments. Data before career-impacting action.
+    - choice: "Proceed with PIP; Deepa has managerial judgment"
+      score: 30
+      reasoning: >
+        Accepts intuition-heavy language. "Managerial judgment"
+        without concrete proof can mask bias. High risk.
+    - choice: "Put Imran on informal coaching first"
+      score: 65
+      reasoning: >
+        Less punitive than PIP. Still need evidence quality
+        check and opportunity audit before any action.
+
+entry_turn:
+  situation: >
+    You are Alex, people-partner for engineering. Deepa, a first-time
+    manager, recommends putting Imran on a performance plan for "low
+    ownership" and "limited leadership presence." Delivery metrics are
+    mid-pack, quality steady. Peer comments include "not assertive
+    enough" and "does not feel senior" without concrete examples.
+    Imran says he is repeatedly assigned maintenance work while peers
+    rotate through visible roadmap items. Deepa says she uses
+    managerial judgment and team perception. Bias rarely announces
+    itself directly.
+  turn_order:
+    - deepa
+    - imran
+  directives:
+    deepa: "Defend recommendation with intuition and team perception."
+    imran: "Highlight uneven opportunity allocation."
+  actor_reactions:
+    - actor_id: deepa
+      dialogue: "The numbers do not tell the whole story. Team perception matters. He does not feel senior."
+    - actor_id: imran
+      dialogue: "I get maintenance work. They get the roadmap items that go in promotion narratives."
+  choices_offered:
+    - label: "Pause PIP; request behavior-specific evidence tied to goals"
+      valence: positive
+    - label: "Review assignment distribution across peers"
+      valence: neutral
+    - label: "Proceed with performance plan per Deepa's judgment"
+      valence: negative
+
+actors:
+  - actor_id: deepa
+    persona: >
+      New manager. Confident but inexperienced in evidence calibration.
+      Uses intuition-heavy language without concrete proof.
+    role: >
+      Performance rater. Authority to trigger PIP.
+    personality: >
+      Defensive of managerial judgment. Trusts team
+      perception. Resists "numbers only" framing.
+    skills:
+      - authority
+    tools: []
+
+  - actor_id: imran
+    persona: >
+      Rated employee. Defensive but factual, fairness-seeking.
+      Highlights uneven opportunity allocation.
+    role: >
+      Employee facing career-impacting assessment.
+    personality: >
+      Factual, points to workload and visibility patterns.
+      Seeks objective evaluation.
+    skills:
+      - hesitation
+    tools: []

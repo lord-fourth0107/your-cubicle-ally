@@ -1,0 +1,99 @@
+id: escalation_informal_complaint_001
+module_id: escalation
+title: "Informal Complaint"
+max_steps: 6
+
+rubric:
+  goal: >
+    Resolve informal complaint conflict by balancing confidentiality,
+    psychological safety, and process accountability. Gold standard:
+    empathic support, capture facts confidentially, structured
+    intervention with documentation plan.
+  key_concepts:
+    - Informal vs formal resolution
+    - Repeated conduct risk
+    - Psychological safety
+    - Trauma-informed response
+    - Documentation for accountability
+  few_shot_examples:
+    - choice: "Capture facts confidentially; agree intervention plan; monitor"
+      score: 90
+      reasoning: >
+        Supported informal path. Respects Sana's request while
+        ensuring accountability. Documented for pattern escalation.
+    - choice: "Explain formal thresholds; initiate formal route with Sana's consent"
+      score: 85
+      reasoning: >
+        Early formal. Informed consent. May feel heavy but
+        protects if pattern continues. Clear options.
+    - choice: "Dismiss as jokes; suggest Sana develop thicker skin"
+      score: 10
+      reasoning: >
+        Minimizes harm. Reinforces unsafe environment.
+        High risk of recurrence and trust breakdown.
+    - choice: "Give Harsh a verbal warning only; no documentation"
+      score: 45
+      reasoning: >
+        Intervenes but leaves no trail. Repeated conduct
+        requires documentation. Weak accountability.
+
+entry_turn:
+  situation: >
+    You are Alex, team operations partner. Sana asks for a private
+    conversation after stand-up. Harsh has made repeated comments
+    about her accent in meetings, usually framed as jokes. "I do not
+    want a formal complaint," Sana says. "I just want it to stop
+    without drama." Harsh is central to a release this week and
+    influential; people excuse his behavior as bluntness. Sana asks
+    you not to tell anyone unless necessary. Policy: informal
+    resolution allowed, but repeated conduct requires documented
+    follow-up. No documentation protects confidentiality today but
+    weakens accountability tomorrow.
+  turn_order:
+    - sana
+    - harsh
+  directives:
+    sana: "Request confidentiality; express exhaustion."
+    harsh: "Unaware of complaint; discuss sprint blockers."
+  actor_reactions:
+    - actor_id: sana
+      dialogue: "I am exhausted from calculating the social cost of speaking up. I just need it to stop."
+    - actor_id: harsh
+      dialogue: "Alex, we have sprint blockers. Can we sync on the release?"
+  choices_offered:
+    - label: "Capture facts confidentially; agree intervention plan; document"
+      valence: positive
+    - label: "Explain formal thresholds; initiate with Sana's informed consent"
+      valence: neutral
+    - label: "Give Harsh a verbal warning; keep it off the record"
+      valence: negative
+
+actors:
+  - actor_id: sana
+    persona: >
+      Reporting employee. Trust-seeking, fatigued, cautious about
+      retaliation. Affected by repeated conduct.
+    role: >
+      Team member who experienced repeated comments.
+      Wants safety without formal process.
+    personality: >
+      Exhausted, wants low-drama resolution.
+      Fears social cost of escalation.
+    skills:
+      - hesitation
+    tools: []
+
+  - actor_id: harsh
+    persona: >
+      Accused peer. High-performing, influential, dismissive of impact.
+      Normalizes behavior as jokes under stress.
+    role: >
+      Colleague whose conduct is the subject of complaint.
+      Central to current release.
+    personality: >
+      Results-focused, blunt. Unaware of conversation.
+      May deflect when confronted.
+    skills:
+      - social_pressure
+      - deflection
+    tools: []

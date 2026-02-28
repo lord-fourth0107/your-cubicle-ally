@@ -1,0 +1,96 @@
+id: posh_microaggression_in_standups_001
+module_id: posh
+title: "Microaggression in Stand-ups"
+max_steps: 6
+
+rubric:
+  goal: >
+    Resolve a microaggression in real time without collapsing team
+    effectiveness, while reinforcing respectful technical discourse.
+    Gold standard: calm direct correction, norm framing, pattern tracking.
+  key_concepts:
+    - Microaggression
+    - Bias-coded feedback
+    - Technical credibility
+    - Respectful communication norms
+    - Pattern recognition
+  few_shot_examples:
+    - choice: "Clarify the bias-coded comment; restate your technical point calmly"
+      score: 90
+      reasoning: >
+        Direct correction. Addresses harm without derailing stand-up.
+        Sets standard for technical discourse.
+    - choice: "Ask Meera to formalize a respectful communication norm"
+      score: 85
+      reasoning: >
+        Facilitated norms path. Uses process owner.
+        Builds team-wide expectation.
+    - choice: "Let it pass; keep the stand-up moving"
+      score: 30
+      reasoning: >
+        Normalizes microaggression. Repeated small cuts
+        become accepted culture. Velocity at cost of safety.
+    - choice: "Call Vik out aggressively in front of the team"
+      score: 55
+      reasoning: >
+        Addresses harm but may escalate emotionally.
+        Calm direct correction more effective than confrontation.
+
+entry_turn:
+  situation: >
+    You are Alex, in the Monday stand-up, explaining a production bug
+    you traced over the weekend: failing service, rollback window,
+    patch plan. Vik leans back: "Can someone from backend translate
+    that into technical terms?" Cameras flicker. Meera, the scrum
+    master, goes still: "Alex just gave the technical summary. Do you
+    have a specific question, Vik?" Vik shrugs: "Relax, I meant no
+    disrespect." He glances at the clock. Meera looks at you, giving
+    you the floor. The bug is urgent. So is the standard for how
+    technical credibility is granted in this room.
+  turn_order:
+    - vik
+    - meera
+  directives:
+    vik: "Minimize comment as harmless; push meeting forward."
+    meera: "Create space for Alex; do not move on yet."
+  actor_reactions:
+    - actor_id: vik
+      dialogue: "It was a joke. Can we move on? We have a release."
+    - actor_id: meera
+      dialogue: "Alex, the floor is yours if you want to add anything."
+  choices_offered:
+    - label: "Clarify the bias-coded comment; restate technical point"
+      valence: positive
+    - label: "Ask Meera to formalize a respectful communication norm"
+      valence: neutral
+    - label: "Let it pass; keep the stand-up moving"
+      valence: negative
+
+actors:
+  - actor_id: vik
+    persona: >
+      Peer engineer. Influential teammate who undermines
+      credibility indirectly. Defensive, dismissive.
+    role: >
+      Colleague who made the comment.
+    personality: >
+      Socially performative. Minimizes bias as
+      harmless efficiency. Tries to move on quickly.
+    skills:
+      - deflection
+      - social_pressure
+    tools: []
+
+  - actor_id: meera
+    persona: >
+      Scrum master. Process owner and norm enforcer.
+      Calm, procedural, fairness-oriented.
+    role: >
+      Facilitator. Creates protected speaking space.
+    personality: >
+      Even-tempered. Supports without controlling.
+      Anchors correction to facts and norms.
+    skills:
+      - empathy
+      - authority
+    tools: []

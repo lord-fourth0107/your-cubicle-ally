@@ -1,0 +1,97 @@
+id: ethics_side_gig_conflict_001
+module_id: ethics
+title: "Side Gig Conflict"
+max_steps: 6
+
+rubric:
+  goal: >
+    Resolve loyalty-vs-duty conflict by using disclosure, scope boundaries,
+    and policy-first decision making. Gold standard: pause until formal review,
+    then set explicit guardrails or decline.
+  key_concepts:
+    - Conflict of interest
+    - Incremental leakage risk
+    - Outside work policy
+    - Disclosure and review process
+    - Boundary setting
+  few_shot_examples:
+    - choice: "Decline participation until formal review outcome; explain to Tanvi"
+      score: 92
+      reasoning: >
+        Full pause per ethics guidance. Protects confidential overlap.
+        Clear, principled boundary despite relationship pressure.
+    - choice: "Propose narrow non-overlapping advisory scope only after Omar approves"
+      score: 85
+      reasoning: >
+        Seeks approval path. May allow limited engagement if no
+        confidential overlap. Documented and constrained.
+    - choice: "Proceed with advisory help; avoid roadmap and vendor topics"
+      score: 40
+      reasoning: >
+        Self-policing is insufficient. Incremental leakage risk remains.
+        Policy requires formal review before any engagement.
+    - choice: "Do it for two weeks while Omar reviews"
+      score: 25
+      reasoning: >
+        Proceeds informally. Violates disclosure process.
+        Exposes confidential strategy to competitive overlap.
+
+entry_turn:
+  situation: >
+    You are Alex, product manager for an internal analytics platform.
+    Tanvi, your closest friend from college, messages at 10 p.m.: she is
+    building a startup and wants "just advisory help" two evenings a week.
+    Her brief includes workforce insights, manager dashboards, attrition
+    prediction—almost mirroring your confidential roadmap. Omar from ethics
+    replied to your disclosure draft: "Potential competitive overlap.
+    Do not proceed until reviewed." Tanvi sounds hurt: "I am not asking you
+    to leak anything. I trust your integrity." Omar's policy: outside work
+    allowed only when it does not intersect with privileged strategy.
+  turn_order:
+    - tanvi
+    - omar
+  directives:
+    tanvi: "Frame overlap as harmless; emphasize trust and investor momentum."
+    omar: "Reinforce pause and formal review path."
+  actor_reactions:
+    - actor_id: tanvi
+      dialogue: "Two weeks of review could cost me my investor. You know I would never ask for anything confidential."
+    - actor_id: omar
+      dialogue: "Policy is clear. No engagement until review. Conflict risk is incremental—a suggestion here, a benchmark there."
+  choices_offered:
+    - label: "Decline until formal review; explain the pause to Tanvi"
+      valence: positive
+    - label: "Propose narrow non-overlapping scope only after approval"
+      valence: neutral
+    - label: "Proceed with advisory help, avoid roadmap topics"
+      valence: negative
+
+actors:
+  - actor_id: tanvi
+    persona: >
+      Founder friend. Trusted personal contact requesting advisory help.
+      Urgent, relational, optimistic about boundaries.
+    role: >
+      Close friend building a startup. Wants advisory support that
+      overlaps with Alex's domain.
+    personality: >
+      Warm, hurt by bureaucratic delay. Frames request as friendship
+      support, not competitive threat.
+    skills:
+      - social_pressure
+      - empathy
+    tools: []
+
+  - actor_id: omar
+    persona: >
+      Ethics liaison. Policy gatekeeper for conflicts of interest.
+      Precise, risk-focused, process-driven.
+    role: >
+      Reviews disclosures. Insists on formal review before any
+      outside engagement.
+    personality: >
+      Direct, policy-literal. Provides formal review path and
+      documented constraints.
+    skills:
+      - authority
+    tools: []

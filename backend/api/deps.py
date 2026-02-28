@@ -16,6 +16,7 @@ from core.session_manager import SessionManager
 from core.orchestrator import Orchestrator
 from agents.coach_agent import CoachAgent
 from utilities.session_initializer import SessionInitializer
+from utilities.module_loader import ModuleLoader
 
 
 def get_session_manager(request: Request) -> SessionManager:
@@ -32,3 +33,7 @@ def get_coach_agent(request: Request) -> CoachAgent:
 
 def get_session_initializer(request: Request) -> SessionInitializer:
     return request.app.state.session_initializer
+
+
+def get_module_loader(request: Request) -> ModuleLoader:
+    return request.app.state.module_loader

@@ -1,0 +1,92 @@
+id: cybersecurity_wifi_trap_001
+module_id: cybersecurity
+title: "The WiFi Trap"
+max_steps: 6
+
+rubric:
+  goal: >
+    Resolve urgency-vs-security conflict by maintaining secure connection hygiene
+    while preserving business continuity. Gold standard: choose secure method
+    even under severe time pressure and communicate transparently.
+  key_concepts:
+    - Secure connection hygiene
+    - Rogue access point risk
+    - VPN and hotspot policy
+    - Data protection under pressure
+    - Incident prevention
+  few_shot_examples:
+    - choice: "Join late via secure hotspot and communicate delay to Mira and VP"
+      score: 92
+      reasoning: >
+        Prioritizes security over convenience. Transparent communication maintains
+        trust and sets proper expectations. Follows IT guidance.
+    - choice: "Ask Mira to cover your section while you connect safely"
+      score: 85
+      reasoning: >
+        Delegation with secure fallback. Protects sensitive material and preserves
+        meeting continuity through role coordination.
+    - choice: "Connect to Airport_Free to get in quickly, minimize screen sharing"
+      score: 35
+      reasoning: >
+        Yields to pressure. Open Wi-Fi exposes credentials and session data.
+        Partial mitigation insufficient against fake access point risk.
+    - choice: "Use the fast network but only share non-sensitive slides"
+      score: 48
+      reasoning: >
+        Attempts compromise but still violates policy. Sensitive notes and
+        unreleased pricing in slide deck remain exposed. Sets bad precedent.
+
+entry_turn:
+  situation: >
+    You are Alex at an airport gate, ten minutes from presenting to leadership.
+    Two open networks appear: "Airport_Free" and "Airport_Free_5G_Fast." Mira,
+    your teammate, keeps texting that audio checks are failing and the VP is
+    already online. Yesterday, Kunal from IT sent a rule: use hotspot plus VPN
+    only, no open airport Wi-Fi. Your hotspot is flickering. Battery is at 8%.
+    Mira sends: "If you are not in by minute three, I cannot cover your section."
+  turn_order:
+    - mira
+    - kunal
+  directives:
+    mira: "Express urgent pressure about the meeting and inability to cover much longer."
+    kunal: "Reiterate the VPN/hotspot policy and risks of open networks."
+  actor_reactions:
+    - actor_id: mira
+      dialogue: "Alex, the VP is literally waiting. Can you get in or not?"
+    - actor_id: kunal
+      dialogue: "Open Wi-Fi at airports is a classic attack vector. Hotspot and VPN only."
+  choices_offered:
+    - label: "Join late via secure hotspot and communicate delay transparently"
+      valence: positive
+    - label: "Connect to the fast network but only show non-sensitive slides"
+      valence: neutral
+    - label: "Connect to Airport_Free to make the meeting on time"
+      valence: negative
+
+actors:
+  - actor_id: mira
+    persona: >
+      A delivery partner under intense meeting pressure. Urgent, practical,
+      deadline-focused. Pushes for rapid connection due to business stakes.
+    role: >
+      Teammate coordinating the presentation. Needs Alex in the call to avoid
+      coverage gaps and client-facing failure.
+    personality: >
+      Direct, anxious about the timeline, sympathetic to Alex's situation
+      but prioritizes getting the meeting done.
+    skills:
+      - social_pressure
+    tools: []
+
+  - actor_id: kunal
+    persona: >
+      IT security advisor. Policy-driven, preventative, explicit.
+      Previously sent hard rule on VPN and hotspot use.
+    role: >
+      Security standard setter. Defines the safe baseline and risks of deviation.
+    personality: >
+      Calm, firm, evidence-based. Does not pressure; states consequences
+      and supports compliant alternatives.
+    skills:
+      - authority
+    tools: []

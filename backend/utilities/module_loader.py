@@ -114,4 +114,18 @@ class ModuleLoader:
         module_dir = self._modules_dir / module_id / "scenarios"
         if not module_dir.exists():
             return []
-        return [p.stem for p in module_dir.glob("*.yaml")]
+        return sorted(p.stem for p in module_dir.glob("*.yaml"))
+
+    def list_modules(self) -> list[str]:
+        """Return all module IDs (subdirs of modules/ that contain scenarios/)."""
+        if not self._modules_dir.exists():
+            return []
+        return sorted(
+            d.name for d in self._modules_dir.iterdir()
+            if d.is_dir() and (d / "scenarios").exists()
+        )
+
+    def get_scenario_info(self, module_id: str, scenario_id: str) -> dict:
+        """Return minimal scenario metadata (id, title) without full load."""
+        scenario = self.load_scenario(module_id, scenario_id)
+        return {"id": scenario.id, "title": scenario.title}

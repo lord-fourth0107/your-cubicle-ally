@@ -20,7 +20,9 @@ from api.deps import (
     get_session_initializer,
     get_coach_agent,
     get_orchestrator,
+    get_module_loader,
 )
+from utilities.module_loader import ModuleLoader
 
 router = APIRouter()
 
@@ -28,15 +30,32 @@ router = APIRouter()
 # Endpoints
 # ---------------------------------------------------------------------------
 
+def _resolve_scenario_id(
+    module_loader: ModuleLoader,
+    module_id: str,
+    scenario_id: str | None,
+) -> str:
+    """Use scenario_id if provided; otherwise first scenario in module."""
+    if scenario_id:
+        return scenario_id
+    scenarios = module_loader.list_scenarios(module_id)
+    if not scenarios:
+        return f"{module_id}_bystander_001"  # fallback for legacy callers
+    return scenarios[0]
+
+
 @router.post("/start")
 async def start_session(
     body: dict,
     session_manager=Depends(get_session_manager),
     session_initializer=Depends(get_session_initializer),
+    module_loader=Depends(get_module_loader),
 ):
     """
     Body: { player_profile: PlayerProfile, module_id: str, scenario_id?: str }
     Returns: { session_id: str, game_state: GameState }
+
+    If scenario_id is omitted, uses the first scenario in the module.
     """
     raw_profile = body.get("player_profile", {})
     player_profile = PlayerProfile(
@@ -48,7 +67,11 @@ async def start_session(
     )
 
     module_id = body.get("module_id", "posh")
-    scenario_id = body.get("scenario_id", f"{module_id}_bystander_001")
+    scenario_id = _resolve_scenario_id(
+        module_loader,
+        module_id,
+        body.get("scenario_id"),
+    )
 
     try:
         state = session_initializer.create_session(

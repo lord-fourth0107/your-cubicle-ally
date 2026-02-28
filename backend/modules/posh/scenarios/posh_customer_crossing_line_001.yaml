@@ -1,0 +1,94 @@
+id: posh_customer_crossing_line_001
+module_id: posh
+title: "Customer Crossing Line"
+max_steps: 6
+
+rubric:
+  goal: >
+    Resolve inappropriate customer behavior while maintaining professional
+    control of the meeting and protecting personal boundaries.
+    Gold standard: name conduct, reset tone, protect boundary and deal.
+  key_concepts:
+    - Boundary setting with clients
+    - Inappropriate conduct
+    - Meeting control
+    - Account governance
+    - Professional response to sexualized comments
+  few_shot_examples:
+    - choice: "Name the comment as inappropriate; reset tone; proceed on agenda"
+      score: 92
+      reasoning: >
+        Boundary plus continuity. Clear professional reset.
+        Whatever you normalize now repeats in future calls.
+    - choice: "Ask Sara to take technical lead; you re-anchor commercial discussion"
+      score: 88
+      reasoning: >
+        Team handoff. Reduces your screen presence.
+        Maintains control without direct confrontation.
+    - choice: "Laugh it off and redirect to pricing"
+      score: 28
+      reasoning: >
+        Accommodates behavior. "Charm is part of the sale"
+        normalizes inappropriate conduct. Unsafe.
+    - choice: "End the meeting and escalate through account governance"
+      score: 75
+      reasoning: >
+        Strong boundary. May be right if behavior persists.
+        Could have tried reset first for single incident.
+
+entry_turn:
+  situation: >
+    You are Alex, leading a renewal demo that decides one-third of
+    your quarter target. The call is on camera. Neel, the client
+    procurement head, watches you instead of the slides. Sara your
+    solutions engineer is sharing architecture when Neel interrupts:
+    "Can Alex stay full screen? She explains things better when we
+    can see her." Sara redirects to pricing. Neel chuckles: "No
+    offense, but charm is part of the sale, right?" In chat, Sara
+    messages: "I can step in. Your call." She keeps speaking to buy
+    you five seconds. Neel waits for your reaction, amused.
+  turn_order:
+    - neel
+    - sara
+  directives:
+    neel: "Test limits; frame comment as humor."
+    sara: "Offer to step in; support boundary without derailing deal."
+  actor_reactions:
+    - actor_id: neel
+      dialogue: "Just saying. You present well. Should we talk numbers?"
+    - actor_id: sara
+      dialogue: "I can take the technical deep-dive if we want to focus on commercial."
+  choices_offered:
+    - label: "Name the comment as inappropriate; reset tone; proceed on agenda"
+      valence: positive
+    - label: "Ask Sara to take technical lead; re-anchor commercial discussion"
+      valence: neutral
+    - label: "Laugh it off; redirect to pricing"
+      valence: negative
+
+actors:
+  - actor_id: neel
+    persona: >
+      Client procurement head. External stakeholder.
+      Transactional, boundary-testing, status-confident.
+    role: >
+      Buyer. Controls renewal leverage.
+    personality: >
+      Sexualized comments framed as humor.
+      Tests limits. Expects accommodation.
+    skills:
+      - social_pressure
+    tools: []
+
+  - actor_id: sara
+    persona: >
+      Solutions engineer. Internal ally and technical co-owner.
+      Composed, protective, practical.
+    role: >
+      Colleague on the call. Can take over technical lead.
+    personality: >
+      Creates tactical space. Offers takeover.
+      Supports boundary without derailing deal.
+    skills:
+      - empathy
+    tools: []

@@ -21,7 +21,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .routes import session, turn, world
+from .routes import session, turn, world, modules
 from core.session_manager import SessionManager
 from core.orchestrator import Orchestrator
 from agents.coach_agent import CoachAgent
@@ -64,6 +64,7 @@ async def lifespan(app: FastAPI):
     app.state.session_initializer = session_initializer
     app.state.orchestrator = orchestrator
     app.state.coach_agent = coach_agent
+    app.state.module_loader = module_loader
 
     yield
     # --- shutdown (nothing to clean up) ---
@@ -81,6 +82,7 @@ app.add_middleware(
 app.include_router(session.router, prefix="/session", tags=["session"])
 app.include_router(turn.router, prefix="/turn", tags=["turn"])
 app.include_router(world.router, prefix="/world", tags=["world"])
+app.include_router(modules.router, prefix="/modules", tags=["modules"])
 
 
 @app.get("/health")

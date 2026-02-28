@@ -19,6 +19,7 @@ router = APIRouter()
 
 class WorldGenerateRequest(BaseModel):
     module_id: str
+    scenario_id: str | None = None
     scenario_setting: str | None = None
     actors: list[dict]  # [{ actor_id, name, role }]
 
@@ -37,7 +38,8 @@ async def generate_world(body: WorldGenerateRequest):
     Returns environment background + character sprites (base64 data URLs).
     If Imagen is unavailable, returns nulls — frontend falls back to placeholders.
     """
-    setting = body.scenario_setting or get_scenario_setting(body.module_id)
+    key = body.scenario_id or body.module_id
+    setting = body.scenario_setting or get_scenario_setting(key)
     environment_image = generate_environment_image(body.module_id, setting)
 
     actor_sprites = {}

@@ -1,0 +1,95 @@
+id: cybersecurity_usb_in_lobby_001
+module_id: cybersecurity
+title: "USB in the Lobby"
+max_steps: 6
+
+rubric:
+  goal: >
+    Resolve social-engineering exposure by choosing containment over curiosity
+    and following incident procedure. Gold standard: stop insertion, secure
+    device, and route through proper chain-of-custody.
+  key_concepts:
+    - Unknown media risk
+    - Bait device / staged malware
+    - Incident reporting and chain-of-custody
+    - Social engineering awareness
+    - Safe media handling
+  few_shot_examples:
+    - choice: "Do not plug it in. Bag it, label it, and hand to security per protocol"
+      score: 95
+      reasoning: >
+        Immediate containment. Follows incident procedure and prevents
+        potential execution. Corrects risk before any damage.
+    - choice: "Stop Dev from plugging in, record location/time, route to incident channel"
+      score: 88
+      reasoning: >
+        Recognizes bait-device risk and initiates proper reporting.
+        May need to reinforce chain-of-custody with Dev.
+    - choice: "Let Dev plug into his personal laptop first to check contents"
+      score: 22
+      reasoning: >
+        Personal laptop is still a vector. Threat actors count on exactly
+        this confidence. Introduces direct compromise risk.
+    - choice: "Take the USB to IT and ask them to scan it before returning"
+      score: 55
+      reasoning: >
+        Better than insertion but still involves handling unknown media.
+        Policy says do not insert anywhere; secure and report first.
+
+entry_turn:
+  situation: >
+    You are Alex, entering the office lobby before sunrise. A black USB drive
+    with your company logo sits near the visitor kiosk. Dev from design picks
+    it up: "Could be the CFO's deck for the town hall. We should check and
+    return it fast." Isha from security spots the device and strides over,
+    expression tightening. Last week she sent a company-wide reminder that
+    unknown media can carry staged malware. Dev says he will plug it into his
+    personal laptop first—not the corporate one. Isha reaches you: "Do not
+    insert it anywhere. Bag it, label it, chain-of-custody."
+  turn_order:
+    - dev
+    - isha
+  directives:
+    dev: "Minimize the risk as overreaction and push to check contents quickly."
+    isha: "Insist on chain-of-custody and no insertion."
+  actor_reactions:
+    - actor_id: dev
+      dialogue: "Personal laptop, not corporate. What's the big deal? We can return it in five minutes."
+    - actor_id: isha
+      dialogue: "Dev, put it down. Unknown media. Chain-of-custody. Now."
+  choices_offered:
+    - label: "Stop insertion, bag and label device, hand to Isha per protocol"
+      valence: positive
+    - label: "Record location and time, route through incident channel"
+      valence: neutral
+    - label: "Let Dev check it on his personal laptop first"
+      valence: negative
+
+actors:
+  - actor_id: dev
+    persona: >
+      Well-meaning colleague prioritizing speed. Curious, confident,
+      shortcut-prone. Believes personal laptop makes it safe.
+    role: >
+      Coworker who found the device. Wants to return it quickly and
+      sees security caution as overreaction.
+    personality: >
+      Friendly, practical, dismissive of "paranoid" security rules.
+      Uses convenience as justification.
+    skills:
+      - social_pressure
+    tools: []
+
+  - actor_id: isha
+    persona: >
+      Security control owner. Alert, procedural, decisive.
+      Insists on chain-of-custody handling for unknown media.
+    role: >
+      Security lead. Just finished a call about phishing simulations.
+      Enforces incident protocol.
+    personality: >
+      Firm, calm, non-negotiable on evidence handling.
+      Provides clear actionable steps.
+    skills:
+      - authority
+    tools: []

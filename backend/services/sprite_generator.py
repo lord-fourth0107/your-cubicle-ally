@@ -167,21 +167,30 @@ def generate_actor_sprite(actor_id: str, name: str, role: str) -> Optional[str]:
     return None
 
 
-def get_scenario_setting(module_id: str) -> str:
-    """Map module/scenario to a visual setting description."""
+def get_scenario_setting(module_or_scenario_id: str) -> str:
+    """Map module_id or scenario_id to a visual setting description."""
     settings = {
-        "posh-bystander": "restaurant team lunch, colleagues at a table",
-        "posh-microaggression": "office stand-up meeting, team in open plan",
-        "posh-customer": "customer service desk, office lobby",
-        "posh-offsite": "conference room, team offsite retreat",
-        "security-password": "office desk with computer, IT environment",
-        "security-usb": "office lobby, front desk area",
-        "security-wifi": "cafe or coworking space, public WiFi",
-        "ethics-data": "office meeting room, data on screen",
-        "ethics-favor": "office corridor, two colleagues talking",
-        "ethics-sidegig": "home office, laptop, remote work setup",
-        "escalation-informal": "HR office, professional setting",
-        "escalation-bias": "performance review room, manager and employee",
-        "escalation-retaliation": "office hallway, tense atmosphere",
+        # POSH
+        "posh_bystander_001": "restaurant team lunch, colleagues at a table",
+        "posh_microaggression_in_standups_001": "office stand-up meeting, team in open plan",
+        "posh_customer_crossing_line_001": "customer service desk, office lobby",
+        "posh_team_offsite_001": "conference room, team offsite retreat",
+        # Cybersecurity
+        "cybersecurity_password_reuse_boss_001": "office desk with computer, IT environment",
+        "cybersecurity_usb_in_lobby_001": "office lobby, front desk area",
+        "cybersecurity_wifi_trap_001": "airport gate, cafe or coworking space, public WiFi",
+        # Ethics
+        "ethics_data_for_discount_001": "office meeting room, data on screen",
+        "ethics_favor_for_a_friend_001": "office corridor, two colleagues talking",
+        "ethics_side_gig_conflict_001": "home office, laptop, remote work setup",
+        # Escalation
+        "escalation_informal_complaint_001": "HR office, professional setting",
+        "escalation_low_performer_vs_bias_001": "performance review room, manager and employee",
+        "escalation_retaliation_risk_001": "office hallway, tense atmosphere",
+        # Module-level fallbacks
+        "posh": "professional office, team meeting",
+        "cybersecurity": "office with computers, IT setting",
+        "ethics": "office meeting room",
+        "escalation": "HR office, professional setting",
     }
-    return settings.get(module_id, "professional office, neutral workplace")
+    return settings.get(module_or_scenario_id, "professional office, neutral workplace")

@@ -1,0 +1,96 @@
+id: posh_team_offsite_001
+module_id: posh
+title: "Team Offsite"
+max_steps: 6
+
+rubric:
+  goal: >
+    Resolve a power-imbalanced boundary conflict by choosing a safe and
+    professional response, preserving dignity, and moving the conversation
+    to an accountable channel. Gold standard: clear boundary, public/transparent
+    meeting structure, document if pressure persists.
+  key_concepts:
+    - Boundary setting
+    - Power imbalance
+    - Private vs public mentorship
+    - POSH and harassment prevention
+    - Professional meeting norms
+  few_shot_examples:
+    - choice: "Decline private meeting; propose daytime public mentoring slot; confirm by message"
+      score: 92
+      reasoning: >
+        Direct boundary. Moves mentorship to transparent space.
+        Documented alternative protects both parties.
+    - choice: "Accept Kabir's exit cue; move to common area; restate professional norms"
+      score: 85
+      reasoning: >
+        Ally-supported path. Uses witness presence.
+        Redirects without escalating emotionally.
+    - choice: "Go in for ten minutes; keep it professional"
+      score: 25
+      reasoning: >
+        Compromises boundary. Private hotel room with
+        person who controls your ratings is high risk.
+    - choice: "Make an excuse and leave quickly"
+      score: 55
+      reasoning: >
+        Avoids situation but does not set clear boundary.
+        Vague refusal may not prevent repeat pressure.
+
+entry_turn:
+  situation: >
+    You are Alex, six months into your first corporate role, in the
+    hotel corridor after the team offsite dinner. Riya, your team
+    lead, swipes her keycard and turns back: "Come in for ten minutes.
+    I want to talk about your growth plan before review season."
+    Kabir appears at the lift lobby with two coffees: "I was heading
+    to the lounge. You coming?" Riya laughs: "No need to make this
+    awkward." She does not step away from the door. Riya controls
+    your project ratings. Kabir is offering an exit. Riya adds:
+    "I am trying to help you. Do not overthink this."
+  turn_order:
+    - riya
+    - kabir
+  directives:
+    riya: "Frame private meeting as mentorship; imply career cost for refusal."
+    kabir: "Offer face-saving exit to common area without forcing."
+  actor_reactions:
+    - actor_id: riya
+      dialogue: "It is just ten minutes. Your growth plan. I am trying to help you."
+    - actor_id: kabir
+      dialogue: "Lounge has space. We can all debrief there if you want."
+  choices_offered:
+    - label: "Decline; propose daytime public mentoring slot; confirm by message"
+      valence: positive
+    - label: "Accept Kabir's cue; move to lounge; restate professional norms"
+      valence: neutral
+    - label: "Go in for ten minutes; keep it professional"
+      valence: negative
+
+actors:
+  - actor_id: riya
+    persona: >
+      Team lead. Polished, persuasive, authority-aware.
+      Boundary-blurring when convenient. Controls ratings and growth.
+    role: >
+      Direct manager. Inviting private meeting after hours.
+    personality: >
+      Charismatic, frames access as mentorship.
+      Uses subtle pressure and implied career cost.
+    skills:
+      - authority
+      - social_pressure
+    tools: []
+
+  - actor_id: kabir
+    persona: >
+      Project buddy. Observant peer and potential ally.
+      Socially aware, non-intrusive, supportive.
+    role: >
+      Colleague offering exit. Witness to the moment.
+    personality: >
+      Reads the situation. Provides face-saving
+      alternative without taking control.
+    skills:
+      - empathy
+    tools: []

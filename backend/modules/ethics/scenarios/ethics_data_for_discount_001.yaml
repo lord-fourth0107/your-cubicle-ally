@@ -1,0 +1,95 @@
+id: ethics_data_for_discount_001
+module_id: ethics
+title: "Data for Discount"
+max_steps: 6
+
+rubric:
+  goal: >
+    Resolve revenue-vs-privacy conflict by protecting contractual and
+    data-governance obligations under commercial pressure. Gold standard:
+    refuse prohibited sharing, provide aggregated metrics, escalate if needed.
+  key_concepts:
+    - Data governance
+    - Contract compliance
+    - Privacy vs commercial pressure
+    - Precedent setting
+    - Consent-based disclosure
+  few_shot_examples:
+    - choice: "Refuse raw data; provide aggregated metrics per contract immediately"
+      score: 92
+      reasoning: >
+        Contract-first. Compliant stance with practical alternative.
+        Protects privacy and closes quarter with lawful option.
+    - choice: "Offer lawful consent-based approach; make timeline impact explicit"
+      score: 85
+      reasoning: >
+        Explores compliant path. May delay signature but prevents
+        precedent and breach. Documented approach.
+    - choice: "Send department-level logs with manager names redacted"
+      score: 42
+      reasoning: >
+        Partial redaction may still violate contract. User-level
+        and individual manager data likely prohibited. Sets bad precedent.
+    - choice: "Share logs to close the deal; document as one-time exception"
+      score: 18
+      reasoning: >
+        Direct policy breach. Nisha warned: every future buyer will
+        ask for the same. High-severity data-governance failure.
+
+entry_turn:
+  situation: >
+    You are Alex, account lead in a quarter-end renewal call. Rohan the
+    buyer says finance will approve the expanded contract today if you
+    share user-level activity logs by department and individual manager.
+    Nisha from legal opens the agreement: the clause permits only
+    aggregated metrics unless explicit consent exists. Rohan lowers his
+    voice: "I know what the contract says. I am asking what you can do
+    if the deal matters." Your sales dashboard is red. Rohan adds:
+    "Send detailed logs in one hour, or we freeze procurement until
+    next quarter." Nisha: "If we bend here, this becomes precedent."
+  turn_order:
+    - rohan
+    - nisha
+  directives:
+    rohan: "Tie discount approval to data disclosure; emphasize deadline."
+    nisha: "Warn against precedent; insist on compliant path."
+  actor_reactions:
+    - actor_id: rohan
+      dialogue: "Your competitor can be more flexible. One hour. Make it work."
+    - actor_id: nisha
+      dialogue: "Aggregated metrics only. We can package that today. Raw logs? No."
+  choices_offered:
+    - label: "Refuse raw data; provide aggregated metrics per contract"
+      valence: positive
+    - label: "Offer consent-based approach; escalate commercial/legal trade-off"
+      valence: neutral
+    - label: "Share department-level logs to close the quarter"
+      valence: negative
+
+actors:
+  - actor_id: rohan
+    persona: >
+      Commercial decision maker. Hard-nosed, deadline-driven, tactical.
+      Ties discount approval to prohibited data disclosure.
+    role: >
+      Buyer in renewal negotiation. Controls contract signature.
+    personality: >
+      Direct, leverages urgency. Frames request as deal-maker
+      flexibility. Dismisses legal concerns as rigid.
+    skills:
+      - social_pressure
+      - authority
+    tools: []
+
+  - actor_id: nisha
+    persona: >
+      Legal counsel. Privacy and contractual risk owner.
+      Calm, exact, precedent-aware.
+    role: >
+      Ensures contract and data governance compliance.
+    personality: >
+      Firm but measured. Warns against harmful precedent.
+      Offers lawful alternatives.
+    skills:
+      - authority
+    tools: []

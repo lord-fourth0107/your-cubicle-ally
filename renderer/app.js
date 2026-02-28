@@ -118,11 +118,12 @@ const MOCK_DEBRIEF = {
 let gameState = { ...MOCK_GAME_STATE };
 let actors = [...MOCK_ACTORS];
 let turnHistory = [];
-let selectedModule = "";
-let selectedModuleLabel = "POSH";
+let selectedModuleId = "";
+let selectedScenarioId = "";
+let selectedModuleLabel = "";
 let worldData = { environment_image: null, actor_sprites: {} };
 const BACKEND_URL = "http://localhost:8000";
-let useMockBackend = false; // Use real backend; falls back to mock if backend unavailable
+let modulesData = []; // Fetched from GET /modules
 
 // ============ DOM Elements ============
 const screens = {
@@ -202,23 +203,41 @@ function actorsFromGameState(gameState) {
   }));
 }
 
-function getModuleLabel(moduleId) {
-  const labels = {
-    "posh-bystander": "POSH",
-    "posh-microaggression": "POSH",
-    "posh-customer": "POSH",
-    "posh-offsite": "POSH",
-    "security-password": "Cyber Security",
-    "security-usb": "Cyber Security",
-    "security-wifi": "Cyber Security",
-    "ethics-data": "Ethics",
-    "ethics-favor": "Ethics",
-    "ethics-sidegig": "Ethics",
-    "escalation-informal": "Escalation",
-    "escalation-bias": "Escalation",
-    "escalation-retaliation": "Escalation",
+function getModuleDisplayName(moduleId) {
+  const names = {
+    posh: "Prevention of Sexual Harassment (POSH)",
+    cybersecurity: "Cyber Security",
+    ethics: "Ethics",
+    escalation: "Escalation",
   };
-  return labels[moduleId] || "Compliance";
+  return names[moduleId] || moduleId;
+}
+
+async function loadModules() {
+  const select = document.getElementById("module-select");
+  select.innerHTML = '<option value="">Loading...</option>';
+  try {
+    const res = await fetch(`${BACKEND_URL}/modules`);
+    if (!res.ok) throw new Error(res.statusText);
+    modulesData = await res.json();
+  } catch (err) {
+    console.error("Failed to load modules:", err);
+    select.innerHTML = '<option value="">Backend unavailable. Start the server.</option>';
+    return;
+  }
+  select.innerHTML = '<option value="">Choose a scenario...</option>';
+  for (const mod of modulesData) {
+    const optgroup = document.createElement("optgroup");
+    optgroup.label = getModuleDisplayName(mod.module_id);
+    for (const s of mod.scenarios || []) {
+      const opt = document.createElement("option");
+      opt.value = s.id;
+      opt.textContent = s.title;
+      opt.dataset.moduleId = mod.module_id;
+      optgroup.appendChild(opt);
+    }
+    select.appendChild(optgroup);
+  }
 }
 
 async function startScenario() {
@@ -228,17 +247,20 @@ async function startScenario() {
 
   const playerName = (nameInput?.value || "").trim() || "there";
   const resume = resumeInput.value.trim();
-  const moduleId = moduleSelect.value;
+  const scenarioId = moduleSelect.value;
+  const selectedOpt = moduleSelect.options[moduleSelect.selectedIndex];
+  const moduleId = selectedOpt?.dataset?.moduleId;
 
-  if (!moduleId) {
+  if (!scenarioId || !moduleId) {
     moduleSelect.focus();
     moduleSelect.style.borderColor = "#ef4444";
     setTimeout(() => (moduleSelect.style.borderColor = ""), 2000);
     return;
   }
 
-  selectedModule = moduleId;
-  selectedModuleLabel = getModuleLabel(moduleId);
+  selectedModuleId = moduleId;
+  selectedScenarioId = scenarioId;
+  selectedModuleLabel = getModuleDisplayName(moduleId);
 
   const playerProfile = {
     name: playerName,
@@ -248,30 +270,30 @@ async function startScenario() {
     raw_context: resume || "Mid-level professional, general industry",
   };
 
-  if (!useMockBackend) {
-    try {
-      const res = await fetch(`${BACKEND_URL}/session/start`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ player_profile: playerProfile, module_id: moduleId }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        gameState = mapBackendGameState(data.game_state);
-        actors = actorsFromGameState(data.game_state);
-        turnHistory = [];
-        showWorldSetup();
-        return;
-      }
-    } catch (err) {
-      console.warn("Backend unavailable, using mock:", err);
-      useMockBackend = true;
+  try {
+    const res = await fetch(`${BACKEND_URL}/session/start`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        player_profile: playerProfile,
+        module_id: moduleId,
+        scenario_id: scenarioId,
+      }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      alert("Failed to start session: " + (err.detail || res.statusText));
+      return;
     }
+    const data = await res.json();
+    gameState = mapBackendGameState(data.game_state);
+    actors = actorsFromGameState(data.game_state);
+    turnHistory = [];
+    showWorldSetup();
+  } catch (err) {
+    console.error("Backend error:", err);
+    alert("Could not reach backend. Is the server running on http://localhost:8000?");
   }
-
-  resetGameState();
-  actors = [...MOCK_ACTORS];
-  showWorldSetup();
 }
 
 // ============ World Setup (Generative) ============
@@ -331,7 +353,8 @@ async function generateWorld() {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      module_id: selectedModule,
+      module_id: selectedModuleId,
+      scenario_id: selectedScenarioId,
       actors: actors.map((a) => ({
         actor_id: a.actor_id,
         name: a.name,
@@ -485,17 +508,14 @@ function submitChoice(choiceText) {
 
   showOverlay("thinking");
 
-  if (useMockBackend) {
-    setTimeout(() => processMockTurn(choiceText), 800);
-  } else {
-    submitTurnToBackend(choiceText)
-      .then((state) => applyGameState(state))
-      .catch((err) => {
-        console.error("Backend error, using mock:", err);
-        hideOverlay("thinking");
-        processMockTurn(choiceText);
-      });
-  }
+  submitTurnToBackend(choiceText)
+    .then((state) => applyGameState(state))
+    .catch((err) => {
+      console.error("Backend error:", err);
+      hideOverlay("thinking");
+      alert("Turn submission failed: " + (err.message || "Server error"));
+      renderArena();
+    });
 }
 
 async function submitTurnToBackend(playerChoice) {
@@ -568,9 +588,9 @@ async function showDebrief() {
   showScreen("debrief");
   hideAllOverlays();
 
-  let d = MOCK_DEBRIEF;
+  let d = { outcome: "won", overall_score: 0, summary: "No debrief available.", turn_breakdowns: [], key_concepts: [] };
   const sid = gameState.session_id;
-  if (!useMockBackend && sid && sid !== "mock-001") {
+  if (sid) {
     debriefElements.outcome.textContent = "Loading debrief...";
     debriefElements.summary.textContent = "";
     debriefElements.turnList.innerHTML = "";
@@ -581,7 +601,8 @@ async function showDebrief() {
         d = await res.json();
       }
     } catch (err) {
-      console.warn("Debrief API failed, using mock:", err);
+      console.warn("Debrief API failed:", err);
+      d.summary = "Could not load debrief. " + (err.message || "");
     }
   }
   debriefElements.outcome.textContent =
@@ -606,13 +627,16 @@ async function showDebrief() {
 }
 
 // ============ Event Listeners ============
-document.getElementById("start-btn").addEventListener("click", () => showScreen("setup"));
+document.getElementById("start-btn").addEventListener("click", () => {
+  showScreen("setup");
+  loadModules();
+});
 document.getElementById("back-to-welcome-btn").addEventListener("click", () => showScreen("welcome"));
 document.getElementById("start-scenario-btn").addEventListener("click", startScenario);
 
 document.getElementById("retry-btn").addEventListener("click", async () => {
   const sid = gameState.session_id;
-  if (!useMockBackend && sid && sid !== "mock-001") {
+  if (sid) {
     try {
       const res = await fetch(`${BACKEND_URL}/session/${sid}/retry`, { method: "POST" });
       if (res.ok) {
@@ -623,13 +647,15 @@ document.getElementById("retry-btn").addEventListener("click", async () => {
         return;
       }
     } catch (err) {
-      console.warn("Retry API failed, using local reset:", err);
+      console.warn("Retry API failed:", err);
     }
   }
-  resetGameState();
-  enterArena();
+  alert("Could not retry. Please go back and start a new scenario.");
 });
 document.getElementById("debrief-loss-btn").addEventListener("click", () => showDebrief());
 document.getElementById("debrief-win-btn").addEventListener("click", () => showDebrief());
 
-document.getElementById("back-to-setup-btn").addEventListener("click", () => showScreen("setup"));
+document.getElementById("back-to-setup-btn").addEventListener("click", () => {
+  showScreen("setup");
+  loadModules();
+});
