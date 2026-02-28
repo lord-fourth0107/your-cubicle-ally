@@ -1,0 +1,240 @@
+/* Your Cubicle Ally - Professional onboarding */
+:root {
+  --bg-cream: #FFF8F3;
+  --bg-warm: #FFE8DC;
+  --coral: #FF6B6B;
+  --coral-dark: #EE5A5A;
+  --sunny: #FFD93D;
+  --mint: #6BCB77;
+  --lavender: #9B59B6;
+  --soft-purple: rgba(155, 89, 182, 0.15);
+  --text-dark: #2D3436;
+  --text-soft: #636E72;
+  --white: #FFFFFF;
+  --shadow-soft: 0 4px 20px rgba(255, 107, 107, 0.15);
+  --shadow-card: 0 8px 32px rgba(45, 52, 54, 0.08);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: #FAFBFC;
+  color: var(--text-dark);
+  min-height: 100vh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+.screen {
+  display: none;
+  min-height: 100vh;
+  padding: 60px 48px;
+  position: relative;
+  z-index: 1;
+}
+
+.screen.active {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Welcome Screen */
+#welcome-screen {
+  gap: 48px;
+}
+
+.welcome-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.welcome-title {
+  font-size: 2rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text-dark);
+}
+
+.welcome-subtitle {
+  font-size: 1rem;
+  color: var(--text-soft);
+}
+
+.primary-btn {
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  padding: 14px 32px;
+  background: var(--coral);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.primary-btn:hover {
+  background: var(--coral-dark);
+}
+
+.primary-btn:active {
+  transform: translateY(-1px);
+}
+
+.back-btn {
+  position: absolute;
+  top: 24px;
+  left: 24px;
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 500;
+  padding: 8px 16px;
+  background: transparent;
+  color: var(--text-soft);
+  border: 1px solid #E0E0E0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.back-btn:hover {
+  color: var(--text-dark);
+  border-color: var(--text-soft);
+}
+
+/* Job Description Screen */
+#job-description-screen .screen-content {
+  max-width: 560px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+}
+
+h1 {
+  font-size: 1.9rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  text-align: center;
+  color: var(--text-dark);
+}
+
+.screen-subtitle {
+  font-size: 1rem;
+  color: var(--text-soft);
+  text-align: center;
+  line-height: 1.6;
+}
+
+#job-description-input {
+  width: 100%;
+  padding: 16px 20px;
+  font-family: inherit;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  background: var(--white);
+  border: 1px solid #E0E0E0;
+  border-radius: 10px;
+  color: var(--text-dark);
+  resize: vertical;
+  min-height: 140px;
+  transition: border-color 0.2s;
+}
+
+#job-description-input::placeholder {
+  color: #9E9E9E;
+}
+
+#job-description-input:focus {
+  outline: none;
+  border-color: var(--coral);
+}
+
+/* Trainings List Screen */
+#trainings-screen .screen-content {
+  max-width: 640px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 32px;
+}
+
+.trainings-list {
+  list-style: none;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.training-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 24px;
+  background: var(--white);
+  border: 1px solid #E8E8E8;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+  color: inherit;
+}
+
+.training-item:hover {
+  border-color: #D0D0D0;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+}
+
+.training-number {
+  font-family: ui-monospace, monospace;
+  font-size: 0.875rem;
+  font-weight: 600;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #F5F5F5;
+  border-radius: 8px;
+  color: var(--text-soft);
+  flex-shrink: 0;
+}
+
+.training-content {
+  flex: 1;
+}
+
+.training-title {
+  font-size: 1.08rem;
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: var(--text-dark);
+}
+
+.training-desc {
+  font-size: 0.9rem;
+  color: var(--text-soft);
+  line-height: 1.4;
+}
+
+.training-arrow {
+  font-size: 1.4rem;
+  transition: all 0.25s ease;
+  opacity: 0.5;
+}
+
+.training-item:hover .training-arrow {
+  opacity: 0.8;
+}

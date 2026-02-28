@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'">
+  <title>Your Cubicle Ally</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Welcome Screen -->
+  <div id="welcome-screen" class="screen active">
+    <div class="welcome-content">
+      <h1 class="welcome-title">Your Cubicle Ally</h1>
+      <p class="welcome-subtitle">AI-powered onboarding to help you get started</p>
+    </div>
+    <button id="start-onboarding-btn" class="primary-btn">Start My Onboarding</button>
+  </div>
+
+  <!-- Job Description Screen -->
+  <div id="job-description-screen" class="screen">
+    <button id="back-to-welcome-btn" class="back-btn" title="Go back">← Back</button>
+    <div class="screen-content">
+      <h1>Tell us about your role</h1>
+      <p class="screen-subtitle">Enter your job description so we can personalize your onboarding experience</p>
+      <textarea 
+        id="job-description-input" 
+        placeholder="e.g., I'm a Software Engineer joining the Platform team. I'll be working on API development, microservices, and cloud infrastructure..."
+        rows="6"
+      ></textarea>
+      <button id="submit-job-btn" class="primary-btn">Continue</button>
+    </div>
+  </div>
+
+  <!-- Onboarding Trainings List Screen -->
+  <div id="trainings-screen" class="screen">
+    <button id="back-to-job-btn" class="back-btn" title="Go back">← Back</button>
+    <div class="screen-content">
+      <h1>Your Onboarding Trainings</h1>
+      <p class="screen-subtitle">Complete these modules to get up to speed</p>
+      <ul id="trainings-list" class="trainings-list">
+        <!-- Populated by JS -->
+      </ul>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
