@@ -53,7 +53,7 @@ export interface ActorReaction {
 }
 
 export interface Message {
-  role: "system" | "user" | "assistant" | "model";
+  role: "system" | "user" | "assistant";
   content: string;
 }
 
@@ -140,6 +140,7 @@ export interface DebriefResponse {
 export interface StartSessionRequest {
   player_profile: PlayerProfile;
   module_id: string;
+  scenario_id?: string;
 }
 
 export interface StartSessionResponse {

@@ -78,6 +78,7 @@ Start a new game session. Returns the initial `GameState` including the entry-tu
     raw_context: string; // full resume or JD text
   };
   module_id: string;     // e.g. "posh"
+  scenario_id?: string;  // optional override; defaults to "<module_id>_bystander_001"
 }
 ```
 
