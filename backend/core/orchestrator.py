@@ -19,12 +19,12 @@ Depends on: all agents, session_manager, game_state
 Depended on by: API routes
 """
 
-from .game_state import GameState, Turn
-from .session_manager import SessionManager
-from ..agents.evaluator_agent import EvaluatorAgent
-from ..agents.scenario_agent import ScenarioAgent
-from ..agents.actor_agent import ActorAgent
-from ..utilities.prompt_builder import PromptBuilder
+from core.game_state import GameState, Turn
+from core.session_manager import SessionManager
+from agents.evaluator_agent import EvaluatorAgent
+from agents.scenario_agent import ScenarioAgent
+from agents.actor_agent import ActorAgent
+from utilities.prompt_builder import PromptBuilder
 
 
 class Orchestrator:
@@ -99,7 +99,7 @@ class Orchestrator:
 
         # Step 4: Assemble the Turn and apply to session
         turn = Turn(
-            step=state.current_step,
+            step=state.current_step + 1,
             situation=scenario_output.situation_summary,
             turn_order=scenario_output.turn_order,
             directives=scenario_output.directives,

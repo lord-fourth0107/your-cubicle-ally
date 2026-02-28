@@ -5,7 +5,7 @@
  * Uses mock data when backend is not available. World generation uses Gemini/Imagen for sprites.
  */
 
-// ============ Mock Data (from CONTRIBUTING.md) ============
+// ============ Mock Data (synced with backend: Marcus, Claire, Jordan) ============
 const MOCK_GAME_STATE = {
   session_id: "mock-001",
   player_hp: 100,
@@ -14,59 +14,65 @@ const MOCK_GAME_STATE = {
   max_steps: 6,
   status: "active",
   current_situation:
-    "You're at a Friday team lunch. Raj, your senior colleague, cracks a joke " +
-    "that makes Priya visibly uncomfortable. The table laughs awkwardly. " +
-    "Priya stares at her plate. Everyone is waiting to see what happens next.",
+    "It's a Friday team lunch at a restaurant. Marcus, your senior colleague, cracks a sexually charged joke loosely directed at Claire. " +
+    "The table laughs awkwardly. Claire goes quiet and stares at her plate. " +
+    "Everyone is waiting to see what happens next.",
   current_choices: [
-    { label: "Ask Priya privately if she's okay after lunch", valence: "positive" },
-    { label: "Laugh it off and look away", valence: "negative" },
+    { label: "Ask Claire privately if she's okay after lunch", valence: "positive" },
     { label: "Change the subject loudly to break the tension", valence: "neutral" },
+    { label: "Laugh it off and look away", valence: "negative" },
   ],
   current_actor_reactions: [],
 };
 
 const MOCK_ACTORS = [
-  { actor_id: "raj", name: "Raj", role: "Senior colleague" },
-  { actor_id: "priya", name: "Priya", role: "Team member" },
-  { actor_id: "amit", name: "Amit", role: "Bystander" },
+  { actor_id: "marcus", name: "Marcus", role: "Senior colleague" },
+  { actor_id: "claire", name: "Claire", role: "Team member" },
+  { actor_id: "jordan", name: "Jordan", role: "Bystander" },
 ];
 
-// Mock turn progression for demo (simulates backend responses)
+// Mock turn progression (synced with backend: Marcus, Claire, Jordan)
 const MOCK_TURN_PROGRESSION = [
   {
     situation:
-      "Raj leans over to Priya and says something quietly. She shifts in her seat " +
-      "and looks uncomfortable. He notices you watching and smirks.",
+      "The group laughs awkwardly. Claire forces a smile but her eyes are down. " +
+      "Jordan catches your eye briefly, then looks away. Marcus is still grinning, waiting to see if anyone pushes back.",
     choices: [
-      { label: "Confront Raj directly: 'That wasn't okay.'", valence: "positive" },
-      { label: "Ignore it and focus on your food", valence: "negative" },
-      { label: "Catch Priya's eye and give a sympathetic look", valence: "neutral" },
+      { label: "Tell Marcus directly that the comment wasn't appropriate", valence: "positive" },
+      { label: "Ask Jordan quietly what he thought of that", valence: "neutral" },
+      { label: "Agree with Marcus and change the subject", valence: "negative" },
     ],
-    actor_reactions: [{ actor_id: "raj", dialogue: "Relax, it's just a joke. Everyone's so sensitive these days." }],
-    hp_delta: 0,
-  },
-  {
-    situation:
-      "Priya excuses herself to the restroom. The table goes quiet. Amit looks at you " +
-      "uneasily. Raj shrugs and continues eating.",
-    choices: [
-      { label: "Follow Priya to check if she's okay", valence: "positive" },
-      { label: "Say nothing and wait for her to return", valence: "neutral" },
-      { label: "Tell Raj his joke was inappropriate", valence: "positive" },
+    actor_reactions: [
+      { actor_id: "marcus", dialogue: "See? Everyone gets it. You all just need to lighten up." },
+      { actor_id: "jordan", dialogue: "I mean... haha... yeah. Anyway, should we order?" },
     ],
-    actor_reactions: [{ actor_id: "amit", dialogue: "Yeah, I guess it was a bit much..." }],
     hp_delta: -10,
   },
   {
     situation:
-      "Priya returns. She thanks you quietly for checking in. Raj has gone to pay the bill. " +
-      "The lunch wraps up. You've made a difference.",
+      "Claire quietly excuses herself to the bathroom. Marcus watches her go. " +
+      "'She'll get over it,' he says to no one in particular. Jordan shifts in his seat. This is your moment.",
+    choices: [
+      { label: "Follow Claire to check in with her privately", valence: "positive" },
+      { label: "Challenge Marcus's 'she'll get over it' comment", valence: "neutral" },
+      { label: "Nod and move on — it's not your place", valence: "negative" },
+    ],
+    actor_reactions: [
+      { actor_id: "marcus", dialogue: "She's always been a bit sensitive. You know how it is." },
+      { actor_id: "jordan", dialogue: "I don't know... that felt like a bit much to me, honestly." },
+    ],
+    hp_delta: -10,
+  },
+  {
+    situation:
+      "Claire returns to the table. She looks composed but quieter than before. " +
+      "Marcus makes another off-colour remark — smaller this time. Jordan gives you a pointed look.",
     choices: [
       { label: "Suggest reporting to HR when back at the office", valence: "positive" },
       { label: "Leave it at that — the moment passed", valence: "neutral" },
-      { label: "Confront Raj before everyone leaves", valence: "neutral" },
+      { label: "Confront Marcus before everyone leaves", valence: "neutral" },
     ],
-    actor_reactions: [{ actor_id: "priya", dialogue: "Thank you. I wasn't sure what to do." }],
+    actor_reactions: [{ actor_id: "claire", dialogue: "Thank you. I wasn't sure what to do." }],
     hp_delta: 0,
   },
 ];
@@ -75,26 +81,26 @@ const MOCK_DEBRIEF = {
   outcome: "won",
   overall_score: 78,
   summary:
-    "You showed good bystander instincts by checking in with Priya and addressing the situation. " +
-    "You could have been more direct with Raj earlier, but overall you demonstrated awareness and support.",
+    "You showed good bystander instincts by checking in with Claire and addressing the situation. " +
+    "You could have been more direct with Marcus earlier, but overall you demonstrated awareness and support.",
   turn_breakdowns: [
     {
       step: 1,
-      player_choice: "Ask Priya privately if she's okay after lunch",
+      player_choice: "Ask Claire privately if she's okay after lunch",
       what_happened: "You chose to support the affected colleague.",
       compliance_insight: "Bystander intervention starts with checking in. Good first step.",
       hp_delta: 0,
     },
     {
       step: 2,
-      player_choice: "Confront Raj directly",
-      what_happened: "Raj deflected. Priya left the table.",
+      player_choice: "Tell Marcus directly that the comment wasn't appropriate",
+      what_happened: "Marcus deflected. Claire left the table.",
       compliance_insight: "Direct confrontation can escalate. Consider timing and support.",
       hp_delta: -10,
     },
     {
       step: 3,
-      player_choice: "Follow Priya to check if she's okay",
+      player_choice: "Follow Claire to check in with her privately",
       what_happened: "You created a safe space for her to share.",
       compliance_insight: "Private check-ins show support without putting the target on the spot.",
       hp_delta: 0,
@@ -116,7 +122,7 @@ let selectedModule = "";
 let selectedModuleLabel = "POSH";
 let worldData = { environment_image: null, actor_sprites: {} };
 const BACKEND_URL = "http://localhost:8000";
-let useMockBackend = true; // Set false when backend is ready
+let useMockBackend = false; // Use real backend; falls back to mock if backend unavailable
 
 // ============ DOM Elements ============
 const screens = {
@@ -160,6 +166,42 @@ function showScreen(screenId) {
 }
 
 // ============ Setup ============
+/** Map backend GameState (with history[]) to our flat UI format. */
+function mapBackendGameState(g) {
+  const lastTurn = g.history?.length ? g.history[g.history.length - 1] : null;
+  return {
+    session_id: g.session_id,
+    player_hp: g.player_hp,
+    max_hp: g.max_hp ?? 100,
+    current_step: g.current_step ?? 0,
+    max_steps: g.max_steps ?? 6,
+    status: g.status,
+    current_situation: lastTurn?.situation ?? "",
+    current_choices: lastTurn?.choices_offered ?? [],
+    current_actor_reactions: lastTurn?.actor_reactions ?? [],
+  };
+}
+
+/** Map backend role text to short, scenario-agnostic role for sprite prompts. */
+function spriteRoleFromActor(actor) {
+  const r = (actor.role || "").toLowerCase();
+  if (r.includes("offender") || r.includes("senior")) return "Senior colleague";
+  if (r.includes("target") || r.includes("newer")) return "Team member";
+  if (r.includes("bystander")) return "Colleague";
+  const first = (actor.role || "").split(".")[0].trim();
+  return first || "Colleague";
+}
+
+/** Convert backend ActorInstance to display format { actor_id, name, role } for world gen + arena. */
+function actorsFromGameState(gameState) {
+  if (!gameState?.actors?.length) return [...MOCK_ACTORS];
+  return gameState.actors.map((a) => ({
+    actor_id: a.actor_id,
+    name: (a.actor_id || "").charAt(0).toUpperCase() + (a.actor_id || "").slice(1),
+    role: spriteRoleFromActor(a),
+  }));
+}
+
 function getModuleLabel(moduleId) {
   const labels = {
     "posh-bystander": "POSH",
@@ -179,10 +221,12 @@ function getModuleLabel(moduleId) {
   return labels[moduleId] || "Compliance";
 }
 
-function startScenario() {
+async function startScenario() {
+  const nameInput = document.getElementById("player-name-input");
   const resumeInput = document.getElementById("resume-input");
   const moduleSelect = document.getElementById("module-select");
 
+  const playerName = (nameInput?.value || "").trim() || "there";
   const resume = resumeInput.value.trim();
   const moduleId = moduleSelect.value;
 
@@ -193,12 +237,40 @@ function startScenario() {
     return;
   }
 
-  // Store for backend (when connected)
-  window.playerProfile = resume || "Mid-level professional, general industry";
   selectedModule = moduleId;
   selectedModuleLabel = getModuleLabel(moduleId);
 
+  const playerProfile = {
+    name: playerName,
+    role: "Professional",
+    seniority: "Mid-level",
+    domain: "General",
+    raw_context: resume || "Mid-level professional, general industry",
+  };
+
+  if (!useMockBackend) {
+    try {
+      const res = await fetch(`${BACKEND_URL}/session/start`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ player_profile: playerProfile, module_id: moduleId }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        gameState = mapBackendGameState(data.game_state);
+        actors = actorsFromGameState(data.game_state);
+        turnHistory = [];
+        showWorldSetup();
+        return;
+      }
+    } catch (err) {
+      console.warn("Backend unavailable, using mock:", err);
+      useMockBackend = true;
+    }
+  }
+
   resetGameState();
+  actors = [...MOCK_ACTORS];
   showWorldSetup();
 }
 
@@ -225,9 +297,10 @@ function showWorldSetup() {
       } else {
         preview.innerHTML = '<span style="color:rgba(255,255,255,0.6)">Placeholder environment (start backend + set GOOGLE_API_KEY for AI sprites)</span>';
       }
-      if (!data.environment_image && Object.values(data.actor_sprites).every((s) => !s)) {
+      const hasAny = data.environment_image || Object.values(data.actor_sprites || {}).some((s) => !!s);
+      if (!hasAny) {
         document.getElementById("world-fallback-note").textContent =
-          "Tip: Run the backend with GOOGLE_API_KEY to generate AI sprites with Gemini.";
+          "Tip: Set GOOGLE_API_KEY in backend/.env with Imagen access to generate character portraits and office simulation.";
       }
 
       setTimeout(() => enterArena(), 1200);
@@ -302,14 +375,16 @@ function renderWorldScene() {
     envEl.style.backgroundImage = "";
   }
 
+  const speakingIds = new Set(gameState.current_actor_reactions.map((r) => r.actor_id));
   spritesEl.innerHTML = actors
     .map((a) => {
       const src = worldData.actor_sprites?.[a.actor_id];
       const initial = (a.name || "?")[0];
+      const speaking = speakingIds.has(a.actor_id) ? " speaking" : "";
       if (src) {
-        return `<img class="world-sprite" src="${src}" alt="${a.name}" title="${a.name}" />`;
+        return `<div class="world-sprite-wrapper${speaking}" data-actor-id="${a.actor_id}"><img class="world-sprite" src="${src}" alt="${a.name}" title="${a.name}" /></div>`;
       }
-      return `<div class="world-sprite world-sprite-placeholder" title="${a.name}">${initial}</div>`;
+      return `<div class="world-sprite-wrapper${speaking}" data-actor-id="${a.actor_id}"><div class="world-sprite world-sprite-placeholder" title="${a.name}">${initial}</div></div>`;
     })
     .join("");
 }
@@ -345,16 +420,23 @@ function renderArena() {
   // Situation
   arenaElements.situationText.textContent = gameState.current_situation;
 
-  // Actor reactions from last turn
+  // Actor reactions from last turn (interactive dialogue bubbles)
+  const speakingIds = new Set(gameState.current_actor_reactions.map((r) => r.actor_id));
   arenaElements.actorReactions.innerHTML = gameState.current_actor_reactions
     .map(
       (r) => `
-    <div class="reaction-bubble">
-      <strong>${getActorName(r.actor_id)}:</strong> ${r.dialogue}
+    <div class="reaction-bubble" data-actor-id="${r.actor_id}">
+      <span class="reaction-avatar">${(getActorName(r.actor_id) || "?")[0]}</span>
+      <span class="reaction-dialogue"><strong>${getActorName(r.actor_id)}:</strong> ${escapeHtml(r.dialogue)}</span>
     </div>
   `
     )
     .join("");
+
+  // Highlight speaking actors in sidebar
+  arenaElements.actorCards.querySelectorAll(".actor-card").forEach((card) => {
+    card.classList.toggle("speaking", speakingIds.has(card.dataset.actorId));
+  });
 
   // Choices
   arenaElements.choiceCards.innerHTML = gameState.current_choices
@@ -429,17 +511,7 @@ async function submitTurnToBackend(playerChoice) {
 function applyGameState(data) {
   hideOverlay("thinking");
   const g = data.game_state || data;
-  gameState = {
-    session_id: g.session_id,
-    player_hp: g.player_hp,
-    max_hp: g.max_hp ?? 100,
-    current_step: g.current_step,
-    max_steps: g.max_steps,
-    status: g.status,
-    current_situation: g.current_situation ?? g.history?.[g.history.length - 1]?.situation,
-    current_choices: g.current_choices ?? g.history?.[g.history.length - 1]?.choices_offered ?? [],
-    current_actor_reactions: g.current_actor_reactions ?? g.history?.[g.history.length - 1]?.actor_reactions ?? [],
-  };
+  gameState = mapBackendGameState(g);
   if (gameState.status === "lost") showOverlay("loss");
   else if (gameState.status === "won") showOverlay("win");
   renderArena();
@@ -492,11 +564,26 @@ function hideOverlay(name) {
 }
 
 // ============ Debrief ============
-function showDebrief() {
+async function showDebrief() {
   showScreen("debrief");
   hideAllOverlays();
 
-  const d = MOCK_DEBRIEF;
+  let d = MOCK_DEBRIEF;
+  const sid = gameState.session_id;
+  if (!useMockBackend && sid && sid !== "mock-001") {
+    debriefElements.outcome.textContent = "Loading debrief...";
+    debriefElements.summary.textContent = "";
+    debriefElements.turnList.innerHTML = "";
+    debriefElements.conceptsList.innerHTML = "";
+    try {
+      const res = await fetch(`${BACKEND_URL}/session/${sid}/debrief`);
+      if (res.ok) {
+        d = await res.json();
+      }
+    } catch (err) {
+      console.warn("Debrief API failed, using mock:", err);
+    }
+  }
   debriefElements.outcome.textContent =
     d.outcome === "won" ? "Session Complete — You Won!" : "Session Complete — Review Your Performance";
   debriefElements.summary.textContent = d.summary;
@@ -523,11 +610,26 @@ document.getElementById("start-btn").addEventListener("click", () => showScreen(
 document.getElementById("back-to-welcome-btn").addEventListener("click", () => showScreen("welcome"));
 document.getElementById("start-scenario-btn").addEventListener("click", startScenario);
 
-document.getElementById("retry-btn").addEventListener("click", () => {
+document.getElementById("retry-btn").addEventListener("click", async () => {
+  const sid = gameState.session_id;
+  if (!useMockBackend && sid && sid !== "mock-001") {
+    try {
+      const res = await fetch(`${BACKEND_URL}/session/${sid}/retry`, { method: "POST" });
+      if (res.ok) {
+        const g = await res.json();
+        gameState = mapBackendGameState(g);
+        hideAllOverlays();
+        enterArena();
+        return;
+      }
+    } catch (err) {
+      console.warn("Retry API failed, using local reset:", err);
+    }
+  }
   resetGameState();
   enterArena();
 });
-document.getElementById("debrief-loss-btn").addEventListener("click", showDebrief);
-document.getElementById("debrief-win-btn").addEventListener("click", showDebrief);
+document.getElementById("debrief-loss-btn").addEventListener("click", () => showDebrief());
+document.getElementById("debrief-win-btn").addEventListener("click", () => showDebrief());
 
 document.getElementById("back-to-setup-btn").addEventListener("click", () => showScreen("setup"));

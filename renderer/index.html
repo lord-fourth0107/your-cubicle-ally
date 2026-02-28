@@ -25,6 +25,14 @@
       <p class="screen-subtitle">Upload your resume or paste your job description. Choose a compliance module to train on.</p>
 
       <div class="setup-form">
+        <label for="player-name-input">Your first name</label>
+        <input
+          type="text"
+          id="player-name-input"
+          placeholder="e.g., Alex"
+          maxlength="50"
+        />
+
         <label for="resume-input">Resume or Job Description</label>
         <textarea 
           id="resume-input" 
@@ -126,23 +134,23 @@
         </div>
 
         <section class="situation-panel">
-          <h3 class="panel-title">Situation</h3>
+          <h3 class="panel-title">What&apos;s happening</h3>
           <p class="situation-text" id="situation-text">
             Loading...
           </p>
         </section>
 
         <section class="actor-reactions" id="actor-reactions">
-          <!-- Actor dialogue bubbles appear here after each turn -->
+          <!-- Character dialogue appears here as the scene unfolds -->
         </section>
 
         <section class="choices-panel">
-          <h3 class="panel-title">Your Move</h3>
+          <h3 class="panel-title">What do you do?</h3>
           <div class="choice-cards" id="choice-cards">
             <!-- Populated by JS -->
           </div>
           <div class="free-write-row">
-            <input type="text" id="free-write-input" placeholder="Or write your own response..." />
+            <input type="text" id="free-write-input" placeholder="Or type your own response in your words..." />
             <button id="submit-free-write-btn" class="secondary-btn">Submit</button>
           </div>
         </section>

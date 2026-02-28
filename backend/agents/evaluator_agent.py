@@ -22,15 +22,15 @@ Depended on by: core/orchestrator
 import os
 import json
 import google.generativeai as genai
-from ..core.game_state import GameState, Evaluation
-from ..utilities.prompt_builder import PromptBuilder
+from core.game_state import GameState, Evaluation
+from utilities.prompt_builder import PromptBuilder
 
 
 class EvaluatorAgent:
     def __init__(self, prompt_builder: PromptBuilder):
         genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
         self.model = genai.GenerativeModel(
-            model_name=os.getenv("GEMINI_MODEL", "gemini-1.5-flash"),
+            model_name=os.getenv("GEMINI_MODEL", "gemini-2.0-flash"),
             generation_config=genai.GenerationConfig(
                 response_mime_type="application/json",
             ),

@@ -8,7 +8,7 @@ Uses Google Gemini/Imagen to create a simulated environment for the arena.
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from ...services.sprite_generator import (
+from services.sprite_generator import (
     generate_actor_sprite,
     generate_environment_image,
     get_scenario_setting,

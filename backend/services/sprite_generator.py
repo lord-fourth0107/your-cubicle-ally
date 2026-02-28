@@ -1,92 +1,139 @@
 """
 services/sprite_generator.py
 ----------------------------
-Generates sprites and environment art using Google Gemini/Imagen.
+Generates sprites and environment art using Google Gemini.
+Uses gemini-2.0-flash-exp-image-generation (free tier) for native image gen.
 Creates a simulated world for the compliance training arena.
+Caches generated images to disk to avoid re-generation.
 """
 
 import os
 import base64
 import io
+import re
+from pathlib import Path
 from typing import Optional
 
-_imagen_client = None
+_genai_client = None
+
+# Cache directory: backend/cache/sprite_cache/ (created on first use)
+_CACHE_DIR: Path | None = None
 
 
-def _get_imagen_client():
-    global _imagen_client
-    if _imagen_client is not None:
-        return _imagen_client
+def _get_cache_dir() -> Path:
+    """Get or create the sprite cache directory."""
+    global _CACHE_DIR
+    if _CACHE_DIR is not None:
+        return _CACHE_DIR
+    # This file is backend/services/sprite_generator.py → base = backend/
+    base = Path(__file__).resolve().parent.parent
+    _CACHE_DIR = base / "cache" / "sprite_cache"
+    _CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    return _CACHE_DIR
+
+
+def _safe_filename(s: str) -> str:
+    """Sanitize string for use in filenames."""
+    return re.sub(r"[^a-zA-Z0-9_-]", "_", s)[:64]
+
+
+def _cache_path(category: str, key: str) -> Path:
+    return _get_cache_dir() / f"{category}_{key}.png"
+
+
+def _load_from_cache(path: Path) -> Optional[str]:
+    """Load image from cache file, return base64 data URL or None."""
+    try:
+        if path.exists():
+            data = path.read_bytes()
+            return f"data:image/png;base64,{base64.b64encode(data).decode()}"
+    except Exception:
+        pass
+    return None
+
+
+def _save_to_cache(path: Path, data: bytes) -> None:
+    """Save raw image bytes to cache."""
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(data)
+    except Exception as e:
+        print(f"[sprite_generator] Cache write failed: {e}")
+
+
+def _get_genai_client():
+    """Get Google GenAI client for Gemini image generation (free tier)."""
+    global _genai_client
+    if _genai_client is not None:
+        return _genai_client
     api_key = os.getenv("GOOGLE_API_KEY")
     if not api_key:
-        _imagen_client = ("none", None)
-        return _imagen_client
+        _genai_client = ("none", None)
+        return _genai_client
     try:
         from google import genai
         from google.genai import types
 
         client = genai.Client(api_key=api_key)
-        _imagen_client = ("genai", client, types)
-        return _imagen_client
+        _genai_client = ("genai", client, types)
+        return _genai_client
     except ImportError:
-        _imagen_client = ("none", None)
-        return _imagen_client
+        _genai_client = ("none", None)
+        return _genai_client
     except Exception:
-        _imagen_client = ("none", None)
-        return _imagen_client
+        _genai_client = ("none", None)
+        return _genai_client
 
 
-def _image_to_base64_data_url(img) -> Optional[str]:
-    """Extract base64 data URL from generated image object."""
+
+
+def _generate_image_gemini(client, types, prompt: str, aspect_hint: str = "16:9") -> Optional[bytes]:
+    """Use Gemini 2.0 Flash native image generation (free tier)."""
+    model = os.getenv("GEMINI_IMAGE_MODEL", "gemini-2.0-flash-exp-image-generation")
     try:
-        if hasattr(img, "image"):
-            im = img.image
-        else:
-            im = img
-        if hasattr(im, "_image_bytes"):
-            data = im._image_bytes
-        elif hasattr(im, "image_bytes"):
-            data = im.image_bytes
-        elif hasattr(im, "save"):
-            buf = io.BytesIO()
-            im.save(buf, format="PNG")
-            data = buf.getvalue()
-        else:
-            return None
-        return f"data:image/png;base64,{base64.b64encode(data).decode()}"
-    except Exception:
-        return None
+        response = client.models.generate_content(
+            model=model,
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_modalities=["TEXT", "IMAGE"],
+            ),
+        )
+        if response.candidates:
+            for part in response.candidates[0].content.parts:
+                if hasattr(part, "inline_data") and part.inline_data:
+                    return part.inline_data.data
+    except Exception as e:
+        print(f"[sprite_generator] Gemini image gen failed: {e}")
+    return None
 
 
 def generate_environment_image(module_id: str, scenario_setting: str) -> Optional[str]:
     """
     Generate an environment/setting image for the scenario.
     Returns base64 data URL or None on failure.
+    Uses Gemini 2.0 Flash image generation (free tier).
     """
-    client_info = _get_imagen_client()
+    cache_key = _safe_filename(module_id)
+    cache_path = _cache_path("env", cache_key)
+    cached = _load_from_cache(cache_path)
+    if cached is not None:
+        return cached
+
+    client_info = _get_genai_client()
     if client_info[0] != "genai":
         return None
 
     _, client, types = client_info
-    try:
-        prompt = (
-            f"Professional workplace setting: {scenario_setting}. "
-            "Soft isometric or top-down view, warm lighting, "
-            "clean vector illustration style, suitable for a training simulation."
-        )
-        model = os.getenv("IMAGEN_MODEL", "imagen-3.0-fast-generate-001")
-        response = client.models.generate_images(
-            model=model,
-            prompt=prompt,
-            config=types.GenerateImagesConfig(
-                number_of_images=1,
-                aspect_ratio="16:9",
-            ),
-        )
-        if response.generated_images:
-            return _image_to_base64_data_url(response.generated_images[0])
-    except Exception as e:
-        print(f"[sprite_generator] Environment image failed: {e}")
+    prompt = (
+        f"Create a single professional workplace illustration: {scenario_setting}. "
+        "Soft isometric or top-down view, warm lighting, clean vector illustration style, "
+        "suitable for a corporate training simulation. Wide 16:9 composition. "
+        "No text in the image."
+    )
+    data = _generate_image_gemini(client, types, prompt)
+    if data:
+        _save_to_cache(cache_path, data)
+        return f"data:image/png;base64,{base64.b64encode(data).decode()}"
     return None
 
 
@@ -94,31 +141,29 @@ def generate_actor_sprite(actor_id: str, name: str, role: str) -> Optional[str]:
     """
     Generate a character sprite for an actor.
     Returns base64 data URL or None on failure.
+    Uses Gemini 2.0 Flash image generation (free tier).
     """
-    client_info = _get_imagen_client()
+    cache_key = f"{_safe_filename(actor_id)}_{_safe_filename(role)}"
+    cache_path = _cache_path("actor", cache_key)
+    cached = _load_from_cache(cache_path)
+    if cached is not None:
+        return cached
+
+    client_info = _get_genai_client()
     if client_info[0] != "genai":
         return None
 
     _, client, types = client_info
-    try:
-        prompt = (
-            f"Professional character portrait of {name}, {role} in workplace. "
-            "Flat illustration style, neutral expression, simple background, "
-            "circular crop suitable for avatar, corporate training simulation."
-        )
-        model = os.getenv("IMAGEN_MODEL", "imagen-3.0-fast-generate-001")
-        response = client.models.generate_images(
-            model=model,
-            prompt=prompt,
-            config=types.GenerateImagesConfig(
-                number_of_images=1,
-                aspect_ratio="1:1",
-            ),
-        )
-        if response.generated_images:
-            return _image_to_base64_data_url(response.generated_images[0])
-    except Exception as e:
-        print(f"[sprite_generator] Actor sprite failed for {actor_id}: {e}")
+    prompt = (
+        f"Create a professional character portrait illustration: {name}, {role} in a workplace setting. "
+        "Flat illustration style, neutral expression, simple background. "
+        "Square 1:1 composition, face and shoulders, suitable for a circular avatar. "
+        "Corporate training simulation style. No text in the image."
+    )
+    data = _generate_image_gemini(client, types, prompt, "1:1")
+    if data:
+        _save_to_cache(cache_path, data)
+        return f"data:image/png;base64,{base64.b64encode(data).decode()}"
     return None
 
 

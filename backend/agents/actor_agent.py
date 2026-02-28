@@ -29,8 +29,8 @@ Depended on by: core/orchestrator
 import os
 import google.generativeai as genai
 from google.generativeai.types import ContentDict
-from ..core.game_state import ActorInstance, ActorReaction, GameState, Message
-from ..utilities.prompt_builder import PromptBuilder
+from core.game_state import ActorInstance, ActorReaction, GameState, Message
+from utilities.prompt_builder import PromptBuilder
 
 
 class ActorAgent:
@@ -49,7 +49,7 @@ class ActorAgent:
 
         genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
         self.model = genai.GenerativeModel(
-            model_name=os.getenv("GEMINI_MODEL", "gemini-1.5-flash"),
+            model_name=os.getenv("GEMINI_MODEL", "gemini-2.0-flash"),
             system_instruction=static_system_prompt,
         )
 

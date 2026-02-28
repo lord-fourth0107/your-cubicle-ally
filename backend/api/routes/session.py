@@ -3,23 +3,14 @@ api/routes/session.py
 ---------------------
 Endpoints for session lifecycle: start, status, debrief, restart.
 
-POST /session/start        — create a new session from player profile + module
-GET  /session/{id}         — get current game state
-POST /session/{id}/retry   — restart the same scenario (after a loss)
-GET  /session/{id}/debrief — get the Coach Agent debrief (session must be complete)
-
-Owner: API team
-Depends on: core/session_manager, utilities/session_initializer, agents/coach_agent
-
-NOTE: All routes currently return MOCK DATA using the POSH bystander scenario.
-      Replace each handler body with the real implementation once the
-      SessionInitializer and CoachAgent are ready. The response shape must
-      not change — only the data source.
+Uses SessionManager, Orchestrator, CoachAgent for the multi-agent workflow.
 """
 
 import uuid
 from fastapi import APIRouter, HTTPException
-from ...core.game_state import (
+
+from api.dependencies import session_manager, orchestrator, coach_agent
+from core.game_state import (
     GameState,
     SessionStatus,
     PlayerProfile,
@@ -30,12 +21,6 @@ from ...core.game_state import (
 )
 
 router = APIRouter()
-
-# ---------------------------------------------------------------------------
-# In-memory session store (mock only — real impl will use SessionManager)
-# ---------------------------------------------------------------------------
-
-_sessions: dict[str, GameState] = {}
 
 # ---------------------------------------------------------------------------
 # Mock scenario data — POSH bystander 001 "The Uncomfortable Joke"
@@ -141,22 +126,18 @@ async def start_session(body: dict):
 
     session_id = str(uuid.uuid4())
     game_state = _make_fresh_game_state(session_id, player_profile)
-    _sessions[session_id] = game_state
+    session_manager.create(game_state)
 
     return {"session_id": session_id, "game_state": game_state}
 
 
 @router.get("/{session_id}")
 async def get_session(session_id: str):
-    """
-    Returns the current GameState for a session.
-
-    Real impl: fetch from SessionManager.
-    """
-    state = _sessions.get(session_id)
-    if state is None:
+    """Returns the current GameState for a session."""
+    try:
+        return session_manager.get(session_id)
+    except KeyError:
         raise HTTPException(status_code=404, detail=f"Session {session_id!r} not found.")
-    return state
 
 
 @router.post("/{session_id}/retry")
@@ -164,17 +145,17 @@ async def retry_session(session_id: str):
     """
     Reset the session to step 0 with full HP, same scenario.
     Only valid when status is "lost".
-
-    Real impl: call orchestrator.reset_actors() then session_manager.reset().
     """
-    state = _sessions.get(session_id)
-    if state is None:
+    try:
+        state = session_manager.get(session_id)
+    except KeyError:
         raise HTTPException(status_code=404, detail=f"Session {session_id!r} not found.")
     if state.status != SessionStatus.LOST:
         raise HTTPException(status_code=400, detail="Retry is only valid for lost sessions.")
 
+    orchestrator.reset_actors(session_id)
     fresh = _make_fresh_game_state(session_id, state.player_profile)
-    _sessions[session_id] = fresh
+    session_manager.create(fresh)
     return fresh
 
 
@@ -183,49 +164,12 @@ async def get_debrief(session_id: str):
     """
     Return the Coach Agent debrief.
     Only valid when status is "won" or "lost".
-
-    Real impl: call CoachAgent.debrief(state).
     """
-    state = _sessions.get(session_id)
-    if state is None:
+    try:
+        state = session_manager.get(session_id)
+    except KeyError:
         raise HTTPException(status_code=404, detail=f"Session {session_id!r} not found.")
     if state.status == SessionStatus.ACTIVE:
         raise HTTPException(status_code=400, detail="Debrief is only available after the session ends.")
 
-    # Build mock turn breakdowns from history (skipping entry turn which has no player_choice)
-    turn_breakdowns = []
-    for turn in state.history:
-        if not turn.player_choice:
-            continue
-        turn_breakdowns.append({
-            "step": turn.step,
-            "player_choice": turn.player_choice,
-            "what_happened": turn.situation,
-            "compliance_insight": (
-                turn.evaluation.reasoning
-                if turn.evaluation
-                else "No evaluation recorded for this turn."
-            ),
-            "hp_delta": turn.hp_delta,
-        })
-
-    overall_score = max(0, state.player_hp)
-    outcome = state.status.value  # "won" or "lost"
-
-    return {
-        "outcome": outcome,
-        "overall_score": overall_score,
-        "summary": (
-            f"You finished the scenario with {state.player_hp} HP remaining. "
-            "Your choices had real consequences for Claire and signalled to the group what kind of colleague you are. "
-            "Review the turn breakdown below to understand where you could have intervened more effectively."
-        ),
-        "turn_breakdowns": turn_breakdowns,
-        "key_concepts": [
-            "Bystander intervention",
-            "POSH Act reporting obligations",
-            "Creating psychological safety",
-            "Addressing harassment in group settings",
-        ],
-        "recommended_followup": ["posh_reporting_002"] if state.player_hp < 60 else [],
-    }
+    return await coach_agent.debrief(state)

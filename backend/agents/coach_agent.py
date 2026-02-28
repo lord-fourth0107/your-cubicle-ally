@@ -30,7 +30,7 @@ Depended on by: API routes (debrief endpoint)
 import os
 import json
 import google.generativeai as genai
-from ..core.game_state import GameState
+from core.game_state import GameState
 
 
 COACH_SYSTEM_PROMPT = """
@@ -45,7 +45,7 @@ class CoachAgent:
     def __init__(self):
         genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
         self.model = genai.GenerativeModel(
-            model_name=os.getenv("GEMINI_MODEL", "gemini-1.5-flash"),
+            model_name=os.getenv("GEMINI_MODEL", "gemini-2.0-flash"),
             generation_config=genai.GenerationConfig(
                 response_mime_type="application/json",
             ),
