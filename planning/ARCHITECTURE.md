@@ -50,11 +50,11 @@
 │  │     │  and decides their reaction/dialogue  │               │    │
 │  │     └──────────────────────────────────────┘               │    │
 │  │                                                             │    │
-│  │  ┌─────────────────┐      ┌──────────────────────────┐     │    │
-│  │  │ Evaluator Agent │      │      Coach Agent          │     │    │
-│  │  │ Judges player   │      │  Writes end debrief       │     │    │
-│  │  │ response → HP Δ │      │  from full turn history   │     │    │
-│  │  └─────────────────┘      └──────────────────────────┘     │    │
+│  │  ┌─────────────────┐  ┌──────────────────┐  ┌────────────────────┐  │    │
+│  │  │ Evaluator Agent │  │ Guardrail Agent  │  │   Coach Agent      │  │    │
+│  │  │ Judges player   │  │ Validates input  │  │ Writes end debrief │  │    │
+│  │  │ response → HP Δ │  │ & clamps outputs │  │ from full history  │  │    │
+│  │  └─────────────────┘  └──────────────────┘  └────────────────────┘  │    │
 │  └─────────────────────────────────────────────────────────────┘    │
 │                                                                     │
 │  ┌─────────────────────────────────────────────────────────────┐    │
@@ -95,6 +95,7 @@ Every agent operates from one or both of two context layers:
 
 | Agent | Shared Context | Per-Actor History |
 |---|---|---|
+| Guardrail Agent | ✅ Player input only | ✗ |
 | Scenario Agent | ✅ Full | ✗ |
 | Actor Agent | ✅ As grounding | ✅ Own history only |
 | Evaluator Agent | ✅ Full + module rubric | ✗ |
@@ -137,6 +138,12 @@ Each Actor Agent is a **mini agent** with:
 Player submits choice (or free-write)
            │
            ▼
+  ┌─────────────────────┐
+  │  Guardrail Agent    │  ← validates player input (safety + format)
+  │  → pass / reject    │    raises GuardrailViolation on bad input
+  └──────────┬──────────┘
+             │
+             ▼
   ┌─────────────────────┐
   │  Evaluator Agent    │  ← judges quality vs. module rubric
   │  → score, hp_delta  │
@@ -241,9 +248,9 @@ Evaluation {
 |---|---|---|---|
 | Game Environment | Electron + React | ✅ Confirmed | Desktop app; renderer process for all UI |
 | Backend | Python / FastAPI | ✅ Confirmed | Spawned as child process by Electron main; renderer calls localhost HTTP |
-| Agent Framework | google-generativeai SDK | ✅ Confirmed | Direct Gemini SDK — ChatSession for actor memory, JSON mode for structured outputs |
-| LLM | Google Gemini Flash | ✅ Confirmed | Fast, cost-efficient; used for all agent calls via google-generativeai SDK |
-| State | In-memory (session) + SQLite | 🟡 Leaning | SQLite fits local Electron deployment; no external DB needed |
+| Agent Framework | google-genai SDK | ✅ Confirmed | Direct Gemini SDK — ChatSession for actor memory, JSON mode for structured outputs |
+| LLM | Google Gemini 2.0 Flash | ✅ Confirmed | Fast, cost-efficient; used for all agent calls; image gen for sprites |
+| State | In-memory (session) + SQLite | ✅ Confirmed | SQLite fits local Electron deployment; in-memory cache for hot sessions |
 | Module Definitions | YAML files | ✅ Confirmed | Bundled with app, version-controlled, authorable by non-devs |
 | Packaging | PyInstaller + Electron Builder | 🟡 Leaning | Bundle frozen Python binary alongside Electron app |
 

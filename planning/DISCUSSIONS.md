@@ -5,6 +5,39 @@ Add entries in reverse-chronological order (newest at the top).
 
 ---
 
+## [2026-02-28] — Backend Implementation Complete
+
+**Topic:** End-of-hackathon implementation status
+
+**What's built:**
+- `core/game_state.py` — full Pydantic model definitions for `GameState`, `Turn`, `ActorInstance`, `ScoringConfig`, `Choice`, `Evaluation`
+- `core/session_manager.py` — SQLite persistence with in-memory cache for hot sessions; `create`, `get`, `apply_turn`, `reset`, `delete`
+- `core/orchestrator.py` — full turn processing pipeline: GuardrailAgent → EvaluatorAgent → ScenarioAgent → ActorAgents (sequential per turn_order); maintains persistent `ActorAgent` instances per session
+- `agents/scenario_agent.py` — Gemini JSON mode; determines turn order, sets per-actor directives, generates situation summary and next 3 choices
+- `agents/actor_agent.py` — Gemini `ChatSession` per actor per session; static system prompt built once at session start; responds in character every turn
+- `agents/evaluator_agent.py` — scores player choice 0–100 against rubric + few-shot examples; returns `hp_delta`, `reasoning`, `is_critical_failure`
+- `agents/coach_agent.py` — runs once post-session; produces structured debrief with `outcome`, `overall_score`, `summary`, `turn_breakdowns[]`, `key_concepts[]`, `recommended_followup[]`
+- `agents/guardrail_agent.py` — validates player input; clamps out-of-bounds agent outputs; raises `GuardrailViolation`
+- `utilities/prompt_builder.py` — assembles all agent prompts; handles skill injection (appended after personality, clearly delimited); arc phase guidance (OPENING/MID/ESCALATION/CLOSING/FINAL)
+- `utilities/module_loader.py` — loads and validates scenario YAML; cached after first load
+- `utilities/session_initializer.py` — creates fresh `GameState` from scenario + player profile; pre-populates entry turn (step 0)
+- `services/sprite_generator.py` — Gemini 2.0 Flash image generation; caches to `backend/cache/sprite_cache/`
+- `api/` — all routes implemented: `/session/start`, `/session/{id}`, `/session/{id}/retry`, `/session/{id}/debrief`, `/turn/submit`, `/world/generate`, `/modules`, `/modules/{id}`
+- `modules/` — 13 scenarios across 4 modules: POSH, cybersecurity, ethics, escalation
+- `skills/definitions/` — 6 skill YAMLs: `social_pressure`, `deflection`, `hesitation`, `authority`, `empathy`, `bystander_effect`
+- `frontend-contract/types.ts` — TypeScript types mirroring all Pydantic models
+- `frontend-contract/client.ts` — typed API client for all endpoints
+- `scripts/play.py` — full CLI test harness with Rich terminal UI; functional end-to-end
+
+**Still outstanding:**
+- `utilities/resume_parser.py` — stub only; fallback to default persona is in place
+- `tools/` — all stubs; tools are not yet callable by agents
+- `frontend/src/` — screens and components are stubs; `server-manager.ts` is stubbed
+
+**Status:** Backend is demo-ready. Frontend UI is the remaining build.
+
+---
+
 ## [2026-02-28] — All Open Questions Resolved
 
 **Topic:** Final resolution sweep across all remaining questions

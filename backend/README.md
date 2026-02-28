@@ -6,20 +6,21 @@ Python / FastAPI backend. Runs as a local server spawned by the Electron main pr
 - **FastAPI** — API framework
 - **Pydantic** — data models and validation
 - **PyYAML** — module and skill definition loading
-- **OpenAI / Anthropic** — LLM calls for all agents
+- **google-genai** — Gemini SDK for all LLM and image generation calls
 
 ## Structure
 
 ```
 backend/
-├── agents/          # The four agents (Scenario, Actor, Evaluator, Coach)
+├── agents/          # Five agents: Scenario, Actor, Evaluator, Coach, Guardrail
 ├── skills/          # Skill system — base model, registry, and YAML definitions
-├── tools/           # Callable tools available to agents
-├── modules/         # Compliance training modules (YAML)
-├── core/            # Game state models, session manager, orchestrator
-├── utilities/       # Resume parser, module loader, session init, prompt builder
-├── api/             # FastAPI routes
-└── tests/           # Tests
+├── tools/           # Callable tools available to agents (stubs)
+├── modules/         # Compliance training modules — POSH, cybersecurity, ethics, escalation (YAML)
+├── core/            # GameState models, SessionManager, Orchestrator
+├── utilities/       # ResumeParser, ModuleLoader, SessionInitializer, PromptBuilder
+├── services/        # Sprite and environment image generation (Gemini image gen)
+├── api/             # FastAPI routes and app entry
+└── cache/           # Sprite image cache (auto-created)
 ```
 
 ## Setup
@@ -29,7 +30,10 @@ cd backend
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env   # add your API keys (GOOGLE_API_KEY for AI-generated character sprites)
+# create a .env file with the following:
+# GOOGLE_API_KEY=<your key>
+# GEMINI_MODEL=gemini-2.0-flash        (or another Gemini text model)
+# GEMINI_IMAGE_MODEL=gemini-2.0-flash-exp-image-generation
 uvicorn api.main:app --reload --port 8000
 ```
 
@@ -42,7 +46,8 @@ uvicorn api.main:app --reload --port 8000
 | `skills/` | Skills team | `Skill` model, `SkillRegistry` |
 | `tools/` | Tools team | Individual tool functions |
 | `modules/` | Content team | YAML schema (see `planning/COMPONENTS.md`) |
-| `utilities/` | Utilities team | `ResumeParser`, `ModuleLoader`, `PromptBuilder` |
+| `utilities/` | Utilities team | `ResumeParser`, `ModuleLoader`, `PromptBuilder`, `SessionInitializer` |
+| `services/` | Utilities team | `SpriteGenerator` |
 | `api/` | API team | REST contract (see route docstrings) |
 
 ## Key Contracts

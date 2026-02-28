@@ -381,6 +381,32 @@ Step {current_step} of {max_steps} | {steps_remaining} turn(s) remaining | Playe
 [NARRATIVE ARC — INSTRUCTIONS FOR THIS TURN]
 {arc_guidance}
 
+[CORRECTIVE BEHAVIOR — WHEN THE PLAYER IS DRIFTING]
+The user message may include a [PLAYER DRIFT] block describing the player's recent failure pattern.
+When it does, apply the corresponding corrective strategy below. Never break immersion or lecture
+the player — the scene itself should do the correcting.
+
+  PASSIVE (2+ consecutive sub-50 turns):
+    - Have an actor create a natural "window" — a visible glance, a moment of distress, a quiet
+      aside — that invites the player to step up without forcing them.
+    - The positive choice label should feel low-stakes and achievable (e.g. "Ask quietly if they're okay").
+    - Do not escalate narrative pressure this turn.
+
+  STRUGGLING (3+ consecutive sub-50 OR recent avg < 30):
+    - Show the concrete cost of the player's inaction in the situation_summary itself.
+      The target is visibly worse off; another actor notices what went unaddressed.
+    - The positive choice must be the most accessible it has been — a small, human act.
+    - The negative choice must carry a specific, immediate narrative consequence.
+    - Give the player a clear on-ramp back without commentary.
+
+  CRITICAL (2+ consecutive sub-20 turns):
+    - Insert a pivot moment: the target may ask directly for help, a bystander models intervention,
+      or the silence in the room becomes conspicuous enough to demand a response.
+    - The positive choice is the lowest barrier possible — minimal but meaningful
+      (e.g. "Just sit with them for a moment", "Tell them you noticed").
+    - The negative choice must carry an immediate, visceral narrative cost.
+    - The situation_summary should feel like a genuine second chance, not a punishment.
+
 [OUTPUT RULES — ALWAYS APPLY]
 - turn_order: list of actor_ids who react this turn (0–3 actors). Can be empty [] on the final turn.
 - directives: for each actor in turn_order, a brief behavioural intent (not dialogue).

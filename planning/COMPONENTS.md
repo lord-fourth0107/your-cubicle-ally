@@ -101,7 +101,21 @@ Judges the player's response. The system's "referee."
 
 ---
 
-### 1d. Coach Agent
+### 1d. Guardrail Agent
+Safety layer. Runs on every turn — before the Evaluator.
+
+**Responsibilities:**
+- Validates player input for safety and format (rule-based check + LLM for free-write)
+- Clamps/fixes agent outputs that fall outside expected bounds (e.g. Evaluator score out of range, Scenario Agent missing fields, Actor dialogue that breaks character format)
+- Raises `GuardrailViolation` on bad player input — the turn is rejected before any other agent sees it
+- Returns a sanitized version of agent outputs when clamping is applied
+
+**Inputs:** Player input (string) or raw agent output (dict)
+**Outputs:** Validated/sanitized pass-through, or `GuardrailViolation` exception
+
+---
+
+### 1e. Coach Agent
 Writes the end-of-scenario debrief. Runs once per session.
 
 **Responsibilities:**

@@ -19,14 +19,24 @@ Employees battle through real workplace scenarios — making choices that matter
 
 ```
 your-cubicle-ally/
-├── backend/      # Python / FastAPI — agents, game engine, API
-├── frontend/     # Electron + React — the game environment
-└── planning/     # Design docs, architecture, open questions
+├── backend/           # Python / FastAPI — agents, game engine, API
+├── frontend/          # Electron + React — the game environment
+├── frontend-contract/ # Shared TypeScript types and typed API client
+├── scripts/           # CLI test harness (play.py) for backend testing
+└── planning/          # Design docs, architecture, open questions
 ```
 
 ## Quick Start
 
 See [`backend/README.md`](backend/README.md) and [`frontend/README.md`](frontend/README.md) for setup instructions.
+
+To test the backend without a frontend, run the CLI test harness:
+
+```bash
+cd backend && uvicorn api.main:app --reload --port 8000
+# in a second terminal:
+python scripts/play.py
+```
 
 ## Contributing
 

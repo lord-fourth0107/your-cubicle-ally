@@ -2,315 +2,763 @@
 """
 scripts/play.py
 ---------------
-CLI test harness for the Your Cubicle Ally backend.
-Runs a full game session in the terminal — setup, arena loop, debrief.
+Textual TUI for Your Cubicle Ally.
+
+Two tabs:
+  [⚔ Game]  — arena (ASCII sprite + HP), dialogue chat log, choices + input
+  [📋 Logs] — raw API event log
 
 Usage:
-  cd scripts
-  pip install -r requirements.txt
+  cd scripts && pip install -r requirements.txt
   python play.py [--url http://localhost:8000]
 
-Requires the backend to be running:
+Requires the backend:
   cd backend && uvicorn api.main:app --port 8000
 """
 
 import argparse
 import sys
 import time
-import textwrap
+from typing import Optional
+
 import requests
-from rich.console import Console
-from rich.panel import Panel
-from rich.table import Table
-from rich.progress import BarColumn, Progress, TextColumn
-from rich import box
-from rich.prompt import Prompt
-from rich.text import Text
-from rich.rule import Rule
+from textual.app import App, ComposeResult
+from textual.containers import Container, Horizontal, ScrollableContainer, Vertical
+from textual.widgets import (
+    ContentSwitcher,
+    Footer,
+    Header,
+    Input,
+    Label,
+    RichLog,
+    Static,
+    TabbedContent,
+    TabPane,
+)
+from textual import on, work
 
-console = Console()
 
-
-# ---------------------------------------------------------------------------
+# ─────────────────────────────────────────────────────────────────────────────
 # Config
-# ---------------------------------------------------------------------------
+# ─────────────────────────────────────────────────────────────────────────────
 
 DEFAULT_URL = "http://localhost:8000"
 
 
-# ---------------------------------------------------------------------------
-# API helpers
-# ---------------------------------------------------------------------------
+# ─────────────────────────────────────────────────────────────────────────────
+# ASCII Sprites
+# ─────────────────────────────────────────────────────────────────────────────
 
-def api_get(base_url: str, path: str) -> dict:
-    res = requests.get(f"{base_url}{path}", timeout=30)
-    res.raise_for_status()
-    return res.json()
+_SPRITES: dict[str, str] = {
+    "player": (
+        "   ☺   \n"
+        "  /|\\  \n"
+        "   |   \n"
+        "  / \\  "
+    ),
+    "manager": (
+        "  .─.  \n"
+        " (ò_ó) \n"
+        "  ╔═╗  \n"
+        "  ╚═╝  \n"
+        "  ╱ ╲  "
+    ),
+    "colleague": (
+        "  .─.  \n"
+        " (^_^) \n"
+        "  |||  \n"
+        "   |   \n"
+        "  ╱ ╲  "
+    ),
+    "hr": (
+        "  .─.  \n"
+        " (•_•) \n"
+        "  ┌─┐  \n"
+        "  └─┘  \n"
+        "  ╱ ╲  "
+    ),
+    "default": (
+        "  .─.  \n"
+        " (·_·) \n"
+        "  |||  \n"
+        "   |   \n"
+        "  ╱ ╲  "
+    ),
+}
 
 
-def api_post(base_url: str, path: str, body: dict) -> dict:
-    res = requests.post(f"{base_url}{path}", json=body, timeout=30)
-    res.raise_for_status()
-    return res.json()
+def _sprite_for(actor_id: str, role: str) -> str:
+    r = role.lower()
+    if any(k in r for k in ("manager", "director", "vp", "lead", "senior")):
+        return _SPRITES["manager"]
+    if any(k in r for k in ("hr", "human resource", "people ops")):
+        return _SPRITES["hr"]
+    if any(k in r for k in ("colleague", "peer", "engineer", "analyst", "associate")):
+        return _SPRITES["colleague"]
+    return _SPRITES["default"]
 
 
-# ---------------------------------------------------------------------------
-# Display helpers
-# ---------------------------------------------------------------------------
+# ─────────────────────────────────────────────────────────────────────────────
+# API helpers  (sync — always called from background thread workers)
+# ─────────────────────────────────────────────────────────────────────────────
 
-HP_FULL = 100
+def _get(base_url: str, path: str, timeout: int = 90) -> dict:
+    r = requests.get(f"{base_url}{path}", timeout=timeout)
+    r.raise_for_status()
+    return r.json()
 
-def render_hp_bar(current: int, maximum: int = HP_FULL) -> Text:
-    pct = max(0, current / maximum)
-    filled = int(pct * 20)
-    bar = "█" * filled + "░" * (20 - filled)
+
+def _post(base_url: str, path: str, body: dict, timeout: int = 90) -> dict:
+    r = requests.post(f"{base_url}{path}", json=body, timeout=timeout)
+    r.raise_for_status()
+    return r.json()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Helpers
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _hp_markup(hp: int, max_hp: int = 100) -> str:
+    pct = max(0.0, hp / max_hp)
+    filled = int(pct * 16)
+    bar = "█" * filled + "░" * (16 - filled)
     color = "green" if pct > 0.6 else "yellow" if pct > 0.3 else "red"
-    t = Text()
-    t.append(f"HP  [{bar}]  {current}/{maximum}", style=color)
-    return t
+    return f"[{color}]HP [{bar}] {hp}/{max_hp}[/{color}]"
 
 
-def render_situation(situation: str, step: int, max_steps: int) -> Panel:
-    wrapped = textwrap.fill(situation, width=70)
-    return Panel(
-        wrapped,
-        title=f"[bold]Turn {step} of {max_steps}[/bold]",
-        border_style="blue",
-        padding=(1, 2),
-    )
+# ─────────────────────────────────────────────────────────────────────────────
+# Setup steps
+# ─────────────────────────────────────────────────────────────────────────────
+
+_SETUP_STEPS: list[tuple[str, str, str]] = [
+    ("name",      "Your first name",    ""),
+    ("role",      "Job role",           "Software Engineer"),
+    ("seniority", "Seniority level",    "Mid-level"),
+    ("domain",    "Domain / industry",  "Technology"),
+    ("module",    "Module ID",          "posh"),
+]
 
 
-def render_actor_reactions(reactions: list[dict], actors: list[dict]) -> None:
-    if not reactions:
-        return
-    actor_map = {a["actor_id"]: a for a in actors}
-    for r in reactions:
-        actor = actor_map.get(r["actor_id"], {})
-        name = r["actor_id"].capitalize()
-        role = actor.get("role", "").split(".")[0].strip()
-        console.print(f"\n  [bold cyan]{name}[/bold cyan] [dim]({role})[/dim]")
-        console.print(f"  [italic]\"{r['dialogue']}\"[/italic]")
+# ─────────────────────────────────────────────────────────────────────────────
+# App
+# ─────────────────────────────────────────────────────────────────────────────
 
+class CubicleAllyApp(App[None]):
+    """Your Cubicle Ally — Compliance Training TUI."""
 
-def render_choices(choices: list[dict]) -> None:
-    table = Table(box=box.ROUNDED, show_header=False, padding=(0, 2), expand=False)
-    table.add_column("key", style="bold yellow", width=4)
-    table.add_column("label")
-    labels = ["A", "B", "C"]
-    for i, choice in enumerate(choices):
-        table.add_row(f"[{labels[i]}]", choice["label"])
-    table.add_row("[F]", "[dim]Free-write your own response[/dim]")
-    console.print(table)
+    TITLE = "Your Cubicle Ally"
+    SUB_TITLE = "Compliance Training"
 
+    CSS = """
+    TabbedContent, TabPane {
+        height: 1fr;
+    }
 
-def pick_choice(choices: list[dict]) -> str:
-    valid = {"a": 0, "b": 1, "c": 2}
-    while True:
-        raw = Prompt.ask("\n[bold yellow]Your move[/bold yellow]").strip().lower()
-        if raw in valid:
-            return choices[valid[raw]]["label"]
-        if raw == "f":
-            return Prompt.ask("  [dim]Type your response[/dim]").strip()
-        console.print("  [red]Enter A, B, C, or F[/red]")
+    /* ── Setup view ──────────────────────────────────────── */
+    #setup-view {
+        align: center middle;
+        height: 1fr;
+    }
+    #setup-box {
+        width: 64;
+        height: auto;
+        border: double #3b82f6;
+        padding: 2 4;
+    }
+    #setup-title {
+        text-style: bold;
+        color: #06b6d4;
+        text-align: center;
+        margin-bottom: 0;
+    }
+    #setup-subtitle {
+        color: #6b7280;
+        text-align: center;
+        margin-bottom: 2;
+    }
+    #setup-field-label {
+        color: #9ca3af;
+    }
+    #setup-progress {
+        color: #4b5563;
+        text-align: right;
+        margin-top: 1;
+    }
 
+    /* ── Game view ───────────────────────────────────────── */
+    #game-view {
+        layout: vertical;
+        height: 1fr;
+    }
+    #arena-row {
+        height: 10;
+        layout: horizontal;
+        margin-bottom: 1;
+    }
+    #sprite-panel {
+        width: 20;
+        border: round #22c55e;
+        padding: 0 1;
+        align: center top;
+    }
+    #sprite-art {
+        color: #06b6d4;
+        text-align: center;
+        width: 1fr;
+    }
+    #info-panel {
+        width: 1fr;
+        border: round #3b82f6;
+        padding: 0 2;
+        margin-left: 1;
+    }
+    #hp-bar {
+        margin-bottom: 0;
+    }
+    #step-info {
+        color: #6b7280;
+    }
+    #session-info {
+        color: #374151;
+    }
+    #chat-log {
+        height: 1fr;
+        border: round #1e3a5f;
+        margin-bottom: 1;
+        padding: 0 1;
+    }
+    #action-panel {
+        height: auto;
+        border: round #92400e;
+        padding: 0 2;
+        margin-bottom: 0;
+    }
+    #situation-text {
+        color: #e5e7eb;
+        margin-bottom: 1;
+    }
+    #choices-display {
+        color: #d1d5db;
+        margin-bottom: 1;
+    }
+    #choice-input {
+        margin-top: 0;
+    }
+    #status-bar {
+        height: 1;
+        background: #111827;
+        color: #6b7280;
+        padding: 0 2;
+        dock: bottom;
+    }
 
-def render_debrief(debrief: dict) -> None:
-    outcome = debrief.get("outcome", "unknown")
-    score = debrief.get("overall_score", 0)
-    summary = debrief.get("summary", "")
+    /* ── Debrief view ────────────────────────────────────── */
+    #debrief-view {
+        height: 1fr;
+        padding: 0 1;
+    }
+    #debrief-log {
+        height: 1fr;
+    }
 
-    outcome_style = "bold green" if outcome == "won" else "bold red"
-    outcome_label = "YOU WON" if outcome == "won" else "YOU LOST"
+    /* ── Logs tab ────────────────────────────────────────── */
+    #event-log {
+        height: 1fr;
+        padding: 1;
+    }
+    """
 
-    console.print()
-    console.print(Rule(f"[{outcome_style}]  {outcome_label}  [/{outcome_style}]"))
-    console.print()
-    console.print(Panel(
-        textwrap.fill(summary, width=70),
-        title=f"[bold]Overall score: {score}/100[/bold]",
-        border_style="green" if outcome == "won" else "red",
-        padding=(1, 2),
-    ))
+    BINDINGS = [("q", "quit", "Quit")]
 
-    # Turn breakdown
-    breakdowns = debrief.get("turn_breakdowns", [])
-    if breakdowns:
-        console.print("\n[bold]Turn breakdown[/bold]")
-        for t in breakdowns:
-            delta = t.get("hp_delta", 0)
-            delta_str = f"[red]{delta}[/red]" if delta < 0 else f"[green]+{delta}[/green]"
-            console.print(f"\n  [bold]Step {t['step']}[/bold]  HP {delta_str}")
-            console.print(f"  [dim]You said:[/dim] {t['player_choice']}")
-            console.print(f"  [dim]Insight:[/dim] {textwrap.fill(t['compliance_insight'], 66, subsequent_indent='             ')}")
+    def __init__(self, base_url: str = DEFAULT_URL) -> None:
+        super().__init__()
+        self.base_url = base_url
 
-    # Key concepts
-    concepts = debrief.get("key_concepts", [])
-    if concepts:
-        console.print("\n[bold]Key concepts covered[/bold]")
-        for c in concepts:
-            console.print(f"  • {c}")
+        # Setup state
+        self._setup_idx: int = 0
+        self._setup_vals: dict[str, str] = {}
 
-    # Follow-up
-    followup = debrief.get("recommended_followup", [])
-    if followup:
-        console.print("\n[bold]Recommended follow-up modules[/bold]")
-        for m in followup:
-            console.print(f"  → {m}")
+        # Game state
+        self._session_id: Optional[str] = None
+        self._game_state: Optional[dict] = None
+        self._choices: list[dict] = []
 
-    console.print()
+        # Input mode flags — mutually exclusive per turn
+        self._awaiting: bool = False   # player can type
+        self._freewrite: bool = False  # in free-write sub-mode
+        self._lost_mode: bool = False  # game-over, waiting for R/D
 
+    # ── Compose ──────────────────────────────────────────────────────────────
 
-# ---------------------------------------------------------------------------
-# Game loop
-# ---------------------------------------------------------------------------
+    def compose(self) -> ComposeResult:
+        yield Header(show_clock=True)
 
-def wait_for_backend(base_url: str) -> None:
-    console.print(f"\n[dim]Connecting to {base_url}...[/dim]")
-    for attempt in range(1, 11):
-        try:
-            api_get(base_url, "/health")
-            console.print("[green]Backend is up.[/green]\n")
+        with TabbedContent(initial="game-pane"):
+            with TabPane("⚔  Game", id="game-pane"):
+                with ContentSwitcher(initial="setup-view", id="switcher"):
+
+                    # ── Setup screen ─────────────────────────────────────
+                    with Container(id="setup-view"):
+                        with Vertical(id="setup-box"):
+                            yield Label("YOUR  CUBICLE  ALLY", id="setup-title")
+                            yield Label(
+                                "A compliance training scenario. Your choices have consequences.",
+                                id="setup-subtitle",
+                            )
+                            yield Label("", id="setup-field-label")
+                            yield Input(id="setup-input")
+                            yield Label("", id="setup-progress")
+
+                    # ── Game screen ──────────────────────────────────────
+                    with Vertical(id="game-view"):
+                        with Horizontal(id="arena-row"):
+                            with Vertical(id="sprite-panel"):
+                                yield Static("", id="sprite-art", markup=True)
+                            with Vertical(id="info-panel"):
+                                yield Static("", id="hp-bar", markup=True)
+                                yield Static("", id="step-info")
+                                yield Static("", id="session-info")
+                        yield RichLog(
+                            id="chat-log", highlight=True, markup=True, wrap=True
+                        )
+                        with Vertical(id="action-panel"):
+                            yield Static("", id="situation-text", markup=True)
+                            yield Static("", id="choices-display", markup=True)
+                            yield Input(
+                                placeholder="A / B / C / F  ›  Enter",
+                                id="choice-input",
+                            )
+
+                    # ── Debrief screen ───────────────────────────────────
+                    with ScrollableContainer(id="debrief-view"):
+                        yield RichLog(
+                            id="debrief-log", highlight=True, markup=True, wrap=True
+                        )
+
+                yield Static("…", id="status-bar", markup=True)
+
+            with TabPane("📋  Logs", id="logs-pane"):
+                yield RichLog(
+                    id="event-log", highlight=True, markup=True, wrap=True
+                )
+
+        yield Footer()
+
+    def on_mount(self) -> None:
+        self._advance_setup()
+
+    # ── Setup flow ────────────────────────────────────────────────────────────
+
+    def _advance_setup(self) -> None:
+        if self._setup_idx >= len(_SETUP_STEPS):
+            self._begin_session()
             return
-        except Exception:
-            if attempt == 10:
-                console.print("[red]Could not reach backend after 10 attempts. Is it running?[/red]")
-                console.print(f"[dim]  cd backend && uvicorn api.main:app --port 8000[/dim]")
-                sys.exit(1)
-            console.print(f"[yellow]Waiting for backend (attempt {attempt}/10)...[/yellow]")
-            time.sleep(2)
 
-
-def setup_profile(base_url: str) -> tuple[str, dict]:
-    """Prompt for player details and start a session."""
-    console.print(Panel(
-        "[bold]Your Cubicle Ally[/bold]\nA compliance training scenario. Your choices have consequences.",
-        border_style="bright_blue",
-        padding=(1, 4),
-    ))
-
-    console.print("\n[bold]Player setup[/bold]\n")
-    name     = Prompt.ask("  First name")
-    role     = Prompt.ask("  Job role", default="Software Engineer")
-    seniority = Prompt.ask("  Seniority", default="Mid-level")
-    domain   = Prompt.ask("  Domain / industry", default="Technology")
-    module   = Prompt.ask("  Module", default="posh")
-
-    console.print()
-    with console.status("[dim]Starting session...[/dim]"):
-        data = api_post(base_url, "/session/start", {
-            "player_profile": {
-                "name": name,
-                "role": role,
-                "seniority": seniority,
-                "domain": domain,
-                "raw_context": "",
-            },
-            "module_id": module,
-        })
-
-    session_id = data["session_id"]
-    game_state = data["game_state"]
-    console.print(f"[dim]Session: {session_id}[/dim]\n")
-    return session_id, game_state
-
-
-def play_turn(base_url: str, session_id: str, game_state: dict) -> dict:
-    """Render the current turn and submit the player's choice. Returns updated game_state."""
-    actors = game_state.get("actors", [])
-    current_turn = game_state["history"][-1]
-
-    console.print()
-    console.print(render_hp_bar(game_state["player_hp"]))
-    console.print()
-    console.print(render_situation(
-        current_turn["situation"],
-        game_state["current_step"],
-        game_state["max_steps"],
-    ))
-    render_actor_reactions(current_turn.get("actor_reactions", []), actors)
-    console.print()
-    render_choices(current_turn["choices_offered"])
-
-    player_choice = pick_choice(current_turn["choices_offered"])
-
-    with console.status("[dim]Processing turn...[/dim]"):
-        result = api_post(base_url, "/turn/submit", {
-            "session_id": session_id,
-            "player_choice": player_choice,
-        })
-
-    return result["game_state"]
-
-
-def run_game(base_url: str) -> None:
-    session_id, game_state = setup_profile(base_url)
-
-    while game_state["status"] == "active":
-        game_state = play_turn(base_url, session_id, game_state)
-
-    # Show final HP and outcome
-    console.print()
-    console.print(render_hp_bar(game_state["player_hp"]))
-
-    status = game_state["status"]
-
-    if status == "lost":
-        console.print("\n[bold red]You ran out of HP.[/bold red]")
-        action = Prompt.ask(
-            "\nWhat would you like to do?",
-            choices=["retry", "debrief"],
-            default="debrief",
+        key, label, default = _SETUP_STEPS[self._setup_idx]
+        hint = f"  [dim](default: {default})[/dim]" if default else ""
+        self.query_one("#setup-field-label", Label).update(
+            f"[bold]{label}[/bold]{hint}"
         )
-        if action == "retry":
-            with console.status("[dim]Resetting session...[/dim]"):
-                game_state = api_post(base_url, f"/session/{session_id}/retry", {})
-            console.print("\n[green]Session reset. Starting again.[/green]")
-            run_game.__wrapped__(base_url, session_id, game_state)
+        inp = self.query_one("#setup-input", Input)
+        inp.placeholder = default
+        inp.value = ""
+        self.query_one("#setup-progress", Label).update(
+            f"[dim]{self._setup_idx + 1} / {len(_SETUP_STEPS)}[/dim]"
+        )
+        inp.focus()
+
+    @on(Input.Submitted, "#setup-input")
+    def _on_setup_submitted(self, event: Input.Submitted) -> None:
+        key, _, default = _SETUP_STEPS[self._setup_idx]
+        self._setup_vals[key] = event.value.strip() or default
+        self._setup_idx += 1
+        self._advance_setup()
+
+    # ── Session start ─────────────────────────────────────────────────────────
+
+    def _begin_session(self) -> None:
+        self._set_status("Connecting to backend…")
+        self._log("[yellow]Connecting to backend…[/yellow]")
+        self._session_start_worker()
+
+    @work(thread=True)
+    def _session_start_worker(self) -> None:
+        for attempt in range(1, 16):
+            try:
+                _get(self.base_url, "/health", timeout=5)
+                break
+            except Exception:
+                if attempt == 15:
+                    self.call_from_thread(
+                        self._fatal, "Backend unreachable after 15 attempts."
+                    )
+                    return
+                self.call_from_thread(
+                    self._set_status,
+                    f"Waiting for backend… (attempt {attempt}/15)",
+                )
+                time.sleep(2)
+
+        self.call_from_thread(self._log, "[green]Backend connected.[/green]")
+        sv = self._setup_vals
+        try:
+            data = _post(self.base_url, "/session/start", {
+                "player_profile": {
+                    "name":        sv.get("name", "Player"),
+                    "role":        sv.get("role", "Software Engineer"),
+                    "seniority":   sv.get("seniority", "Mid-level"),
+                    "domain":      sv.get("domain", "Technology"),
+                    "raw_context": "",
+                },
+                "module_id": sv.get("module", "posh"),
+            })
+        except requests.HTTPError as exc:
+            self.call_from_thread(
+                self._fatal,
+                f"Session start {exc.response.status_code}: {exc.response.text[:200]}",
+            )
+            return
+        except Exception as exc:
+            self.call_from_thread(self._fatal, f"Session start error: {exc}")
             return
 
-    with console.status("[dim]Generating debrief...[/dim]"):
-        debrief = api_get(base_url, f"/session/{session_id}/debrief")
+        sid = data["session_id"]
+        gs = data["game_state"]
+        self.call_from_thread(self._log, f"[dim]Session: {sid}[/dim]")
+        self.call_from_thread(self._on_session_ready, sid, gs)
 
-    render_debrief(debrief)
+    def _on_session_ready(self, session_id: str, game_state: dict) -> None:
+        self._session_id = session_id
+        self._game_state = game_state
+        self.query_one("#switcher", ContentSwitcher).current = "game-view"
+        self._render_current_turn()
+
+    # ── Turn rendering ────────────────────────────────────────────────────────
+
+    def _render_current_turn(self) -> None:
+        gs = self._game_state
+        if not gs:
+            return
+        history = gs.get("history", [])
+        if not history:
+            return
+
+        turn = history[-1]
+        actors = gs.get("actors", [])
+        actor_map = {a["actor_id"]: a for a in actors}
+
+        # HP + step
+        hp = gs.get("player_hp", 100)
+        max_hp = gs.get("starting_hp", 100)
+        self.query_one("#hp-bar", Static).update(_hp_markup(hp, max_hp))
+        step = gs.get("current_step", 0)
+        max_steps = gs.get("max_steps", 6)
+        self.query_one("#step-info", Static).update(
+            f"Step [bold]{step}[/bold] / {max_steps}"
+        )
+        sid_short = (self._session_id or "")[:16]
+        self.query_one("#session-info", Static).update(f"[dim]{sid_short}…[/dim]")
+
+        # Actor reactions → chat log
+        chat = self.query_one("#chat-log", RichLog)
+        reactions = turn.get("actor_reactions", [])
+        last_actor_id: Optional[str] = None
+        last_actor_role: str = ""
+
+        for r in reactions:
+            aid = r["actor_id"]
+            actor = actor_map.get(aid, {})
+            role = actor.get("role", "")
+            role_short = role.split(".")[0].strip()
+            chat.write(
+                f"[bold cyan]{aid.upper()}[/bold cyan]  [dim]{role_short}[/dim]"
+            )
+            chat.write(f'  [italic]{r["dialogue"]}[/italic]')
+            chat.write("")
+            last_actor_id = aid
+            last_actor_role = role
+
+        # Sprite — last speaking actor, or player if no reactions
+        if last_actor_id:
+            sprite = _sprite_for(last_actor_id, last_actor_role)
+            self.query_one("#sprite-art", Static).update(
+                f"[cyan]{sprite}[/cyan]\n[bold]{last_actor_id.capitalize()}[/bold]"
+            )
+        else:
+            self.query_one("#sprite-art", Static).update(
+                f"[green]{_SPRITES['player']}[/green]\n[bold green]You[/bold green]"
+            )
+
+        # Situation
+        situation = turn.get("situation", "")
+        self.query_one("#situation-text", Static).update(
+            f"[bold]Scene[/bold]\n{situation}"
+        )
+
+        # Choices
+        choices = turn.get("choices_offered", [])
+        self._choices = choices
+        status = gs.get("status", "active")
+
+        if choices and status == "active":
+            labels = ["A", "B", "C"]
+            lines = [
+                f"  [yellow bold][{labels[i]}][/yellow bold]  {c['label']}"
+                for i, c in enumerate(choices[:3])
+            ]
+            lines.append(
+                "  [yellow bold][F][/yellow bold]  [dim]Free-write your own response[/dim]"
+            )
+            self.query_one("#choices-display", Static).update("\n".join(lines))
+            self._enable_input("A / B / C  or  F to free-write  ›  Enter to confirm")
+            self._awaiting = True
+            self._freewrite = False
+            self._lost_mode = False
+            self._set_status("Your move — press [A], [B], [C] or [F]")
+        else:
+            self.query_one("#choices-display", Static).update("")
+
+        self._log(f"[dim]Turn {step}: {situation[:80]}…[/dim]")
+
+    # ── Input helpers ─────────────────────────────────────────────────────────
+
+    def _enable_input(self, placeholder: str = "") -> None:
+        inp = self.query_one("#choice-input", Input)
+        inp.disabled = False
+        inp.placeholder = placeholder
+        inp.value = ""
+        inp.focus()
+
+    def _disable_input(self, placeholder: str = "Processing…") -> None:
+        inp = self.query_one("#choice-input", Input)
+        inp.disabled = True
+        inp.placeholder = placeholder
+        inp.value = ""
+
+    # ── Choice handling ───────────────────────────────────────────────────────
+
+    @on(Input.Submitted, "#choice-input")
+    def _on_choice_input(self, event: Input.Submitted) -> None:
+        raw = event.value.strip()
+        event.input.value = ""
+
+        if not self._awaiting:
+            return
+
+        # Game-over state: R = retry, D = debrief
+        if self._lost_mode:
+            key = raw.lower()
+            if key in ("r", "retry"):
+                self._awaiting = False
+                self._lost_mode = False
+                self._disable_input()
+                self._do_retry()
+            elif key in ("d", "debrief"):
+                self._awaiting = False
+                self._lost_mode = False
+                self._disable_input()
+                self._do_debrief()
+            else:
+                self._set_status("[red]Type R (retry) or D (debrief) then Enter[/red]")
+            return
+
+        # Free-write sub-mode
+        if self._freewrite:
+            if raw:
+                self._freewrite = False
+                self._submit_choice(raw)
+            return
+
+        # Normal A/B/C/F
+        key = raw.lower()
+        if key in ("a", "b", "c"):
+            idx = {"a": 0, "b": 1, "c": 2}[key]
+            if idx < len(self._choices):
+                self._submit_choice(self._choices[idx]["label"])
+        elif key == "f":
+            self._freewrite = True
+            self._enable_input("Type your response and press Enter…")
+            self._set_status("Free-write — type your response then Enter")
+        else:
+            self._set_status("[red]Invalid — press A, B, C or F[/red]")
+
+    def _submit_choice(self, player_choice: str) -> None:
+        self._awaiting = False
+        self._disable_input()
+        chat = self.query_one("#chat-log", RichLog)
+        chat.write(f"\n[bold green]YOU[/bold green]  {player_choice}\n")
+        self.query_one("#sprite-art", Static).update(
+            f"[green]{_SPRITES['player']}[/green]\n[bold green]You[/bold green]"
+        )
+        self._set_status("Processing turn…")
+        self._log(f"[green]Player:[/green] {player_choice}")
+        self._turn_submit_worker(player_choice)
+
+    # ── Turn submit worker ────────────────────────────────────────────────────
+
+    @work(thread=True)
+    def _turn_submit_worker(self, player_choice: str) -> None:
+        try:
+            data = _post(self.base_url, "/turn/submit", {
+                "session_id": self._session_id,
+                "player_choice": player_choice,
+            })
+        except requests.HTTPError as exc:
+            self.call_from_thread(
+                self._fatal,
+                f"Turn submit {exc.response.status_code}: {exc.response.text[:200]}",
+            )
+            return
+        except Exception as exc:
+            self.call_from_thread(self._fatal, f"Turn error: {exc}")
+            return
+
+        gs = data["game_state"]
+        self.call_from_thread(
+            self._log,
+            f"[dim]HP={gs.get('player_hp')} status={gs.get('status')}[/dim]",
+        )
+        self.call_from_thread(self._on_turn_done, gs)
+
+    def _on_turn_done(self, game_state: dict) -> None:
+        self._game_state = game_state
+        status = game_state.get("status", "active")
+        self._render_current_turn()
+
+        if status == "won":
+            self.query_one("#chat-log", RichLog).write(
+                "\n[bold green]━━  SCENARIO COMPLETE  ━━[/bold green]\n"
+            )
+            self._set_status("Complete! Generating debrief…")
+            self._do_debrief()
+
+        elif status == "lost":
+            self.query_one("#chat-log", RichLog).write(
+                "\n[bold red]━━  YOU RAN OUT OF HP  ━━[/bold red]\n"
+            )
+            self.query_one("#choices-display", Static).update(
+                "  [yellow bold][R][/yellow bold]  Retry the same scenario\n"
+                "  [yellow bold][D][/yellow bold]  View debrief"
+            )
+            self._enable_input("R (retry)  or  D (debrief)  ›  Enter")
+            self._awaiting = True
+            self._lost_mode = True
+            self._set_status("[red]Game over![/red]  R = retry  |  D = debrief")
+            self._log("[red]Game lost.[/red]")
+
+    # ── Debrief ───────────────────────────────────────────────────────────────
+
+    def _do_debrief(self) -> None:
+        self._set_status("Generating debrief…")
+        self._log("[yellow]Fetching debrief…[/yellow]")
+        self._debrief_worker()
+
+    @work(thread=True)
+    def _debrief_worker(self) -> None:
+        try:
+            debrief = _get(self.base_url, f"/session/{self._session_id}/debrief")
+        except Exception as exc:
+            self.call_from_thread(self._fatal, f"Debrief error: {exc}")
+            return
+        self.call_from_thread(self._render_debrief, debrief)
+
+    def _render_debrief(self, debrief: dict) -> None:
+        self.query_one("#switcher", ContentSwitcher).current = "debrief-view"
+        log = self.query_one("#debrief-log", RichLog)
+        log.clear()
+
+        outcome = debrief.get("outcome", "unknown")
+        score = debrief.get("overall_score", 0)
+
+        if outcome == "won":
+            log.write("[bold green]═══  YOU WON  ═══[/bold green]\n")
+        else:
+            log.write("[bold red]═══  YOU LOST  ═══[/bold red]\n")
+
+        log.write(f"[bold]Overall score: {score}/100[/bold]")
+        log.write(f"\n{debrief.get('summary', '')}\n")
+
+        for t in debrief.get("turn_breakdowns", []):
+            delta = t.get("hp_delta", 0)
+            delta_str = (
+                f"[red]{delta}[/red]" if delta < 0 else f"[green]+{delta}[/green]"
+            )
+            log.write(f"\n[bold]Step {t.get('step', '?')}[/bold]  HP {delta_str}")
+            log.write(f"  You said:  {t.get('player_choice', '')}")
+            log.write(f"  Insight:   {t.get('compliance_insight', '')}")
+
+        concepts = debrief.get("key_concepts", [])
+        if concepts:
+            log.write("\n[bold]Key Concepts[/bold]")
+            for c in concepts:
+                log.write(f"  • {c}")
+
+        followup = debrief.get("recommended_followup", [])
+        if followup:
+            log.write("\n[bold]Recommended Follow-up[/bold]")
+            for m in followup:
+                log.write(f"  → {m}")
+
+        log.write("\n[dim]Press Q to quit or start a new session.[/dim]")
+        self._set_status("Debrief complete — press Q to quit")
+        self._log("[green]Debrief rendered.[/green]")
+
+    # ── Retry ─────────────────────────────────────────────────────────────────
+
+    def _do_retry(self) -> None:
+        self._set_status("Resetting session…")
+        self._log("[yellow]Retrying…[/yellow]")
+        self._retry_worker()
+
+    @work(thread=True)
+    def _retry_worker(self) -> None:
+        try:
+            # /session/{id}/retry returns game_state directly (not wrapped in a dict)
+            game_state = _post(
+                self.base_url,
+                f"/session/{self._session_id}/retry",
+                {},
+            )
+        except Exception as exc:
+            self.call_from_thread(self._fatal, f"Retry error: {exc}")
+            return
+        self.call_from_thread(self._on_retry_done, game_state)
+
+    def _on_retry_done(self, game_state: dict) -> None:
+        self._game_state = game_state
+        chat = self.query_one("#chat-log", RichLog)
+        chat.clear()
+        chat.write("[bold yellow]── Session Reset ──[/bold yellow]\n")
+        self.query_one("#choices-display", Static).update("")
+        self._render_current_turn()
+        self._log("[yellow]Session reset.[/yellow]")
+
+    # ── Utilities ─────────────────────────────────────────────────────────────
+
+    def _set_status(self, msg: str) -> None:
+        self.query_one("#status-bar", Static).update(msg)
+
+    def _log(self, msg: str) -> None:
+        self.query_one("#event-log", RichLog).write(msg)
+
+    def _fatal(self, msg: str) -> None:
+        self._set_status(f"[bold red]ERROR[/bold red]  {msg}")
+        self._log(f"[bold red]FATAL:[/bold red] {msg}")
 
 
-def _resume_game(base_url: str, session_id: str, game_state: dict) -> None:
-    """Internal: continue from an existing game_state (used after retry)."""
-    while game_state["status"] == "active":
-        game_state = play_turn(base_url, session_id, game_state)
-
-    console.print()
-    console.print(render_hp_bar(game_state["player_hp"]))
-
-    with console.status("[dim]Generating debrief...[/dim]"):
-        debrief = api_get(base_url, f"/session/{session_id}/debrief")
-
-    render_debrief(debrief)
-
-
-# Attach for retry path
-run_game.__wrapped__ = _resume_game  # type: ignore[attr-defined]
-
-
-# ---------------------------------------------------------------------------
+# ─────────────────────────────────────────────────────────────────────────────
 # Entry point
-# ---------------------------------------------------------------------------
+# ─────────────────────────────────────────────────────────────────────────────
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Your Cubicle Ally — CLI test harness")
+    parser = argparse.ArgumentParser(description="Your Cubicle Ally — TUI")
     parser.add_argument("--url", default=DEFAULT_URL, help="Backend base URL")
     args = parser.parse_args()
 
-    wait_for_backend(args.url)
-
     try:
-        run_game(args.url)
+        CubicleAllyApp(base_url=args.url).run()
     except KeyboardInterrupt:
-        console.print("\n\n[dim]Session interrupted.[/dim]")
         sys.exit(0)
-    except requests.HTTPError as e:
-        console.print(f"\n[red]API error {e.response.status_code}:[/red] {e.response.text}")
-        sys.exit(1)
 
 
 if __name__ == "__main__":

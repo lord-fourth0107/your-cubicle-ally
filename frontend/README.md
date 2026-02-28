@@ -54,7 +54,7 @@ npm run dev      # starts Electron in dev mode (also starts backend)
 ## Backend Communication
 
 The renderer calls the FastAPI backend over `http://localhost:8000`.
-All API calls go through `store/sessionStore.ts` — do not call the backend directly from components.
+All API calls must go through `frontend-contract/client.ts` — the typed API client that mirrors the backend contract exactly. Do not call the backend directly from components or stores.
 
 ## Key Contracts
 

@@ -26,10 +26,70 @@ Depended on by: API routes
 from core.game_state import GameState, SessionStatus, Turn
 from core.session_manager import SessionManager
 from agents.evaluator_agent import EvaluatorAgent
-from agents.scenario_agent import ScenarioAgent
+from agents.scenario_agent import ScenarioAgent, PlayerDrift
 from agents.actor_agent import ActorAgent
 from agents.guardrail_agent import GuardrailAgent
 from utilities.prompt_builder import PromptBuilder
+
+
+def _compute_drift(history: list) -> PlayerDrift:
+    """
+    Analyse the player's recent scored turns and return a PlayerDrift signal.
+
+    Only considers turns where an evaluation exists (skips the entry turn).
+    Looks at the last 3 turns for the rolling window, but counts consecutive
+    failures over the full history.
+
+    Drift levels (see PlayerDrift docstring for corrective intent per level):
+      on_track   — avg ≥ 50 over last 3 turns, no run of failures
+      passive    — avg 30–49 OR 2 consecutive sub-50 turns
+      struggling — avg < 30 OR 3+ consecutive sub-50 turns OR HP trend ≤ −30
+      critical   — 2+ consecutive sub-20 turns (active disengagement pattern)
+    """
+    scored = [t for t in history if t.evaluation is not None]
+    if not scored:
+        return PlayerDrift(
+            level="on_track",
+            consecutive_poor=0,
+            consecutive_bad=0,
+            recent_avg_score=100.0,
+            hp_trend=0,
+        )
+
+    recent = scored[-3:]
+    recent_avg = sum(t.evaluation.score for t in recent) / len(recent)
+    hp_trend = sum(t.evaluation.hp_delta for t in recent)
+
+    consecutive_poor = 0
+    for t in reversed(scored):
+        if t.evaluation.score < 50:
+            consecutive_poor += 1
+        else:
+            break
+
+    consecutive_bad = 0
+    for t in reversed(scored):
+        if t.evaluation.score < 20:
+            consecutive_bad += 1
+        else:
+            break
+
+    if consecutive_bad >= 2:
+        level = "critical"
+    elif consecutive_poor >= 3 or recent_avg < 30 or hp_trend <= -30:
+        level = "struggling"
+    elif consecutive_poor >= 2 or recent_avg < 50:
+        level = "passive"
+    else:
+        level = "on_track"
+
+    return PlayerDrift(
+        level=level,
+        consecutive_poor=consecutive_poor,
+        consecutive_bad=consecutive_bad,
+        recent_avg_score=round(recent_avg, 1),
+        hp_trend=hp_trend,
+    )
 
 
 class Orchestrator:
@@ -95,11 +155,16 @@ class Orchestrator:
         # Clamp evaluator output to the scenario's configured HP delta bounds
         evaluation = self.guardrail.fix_evaluator_output(evaluation, state.scoring)
 
+        # Compute drift from the full history (including the just-evaluated turn)
+        # so the Scenario Agent can steer the narrative back if the player is struggling.
+        drift = _compute_drift(state.history)
+
         # Step 2: Scenario Agent decides turn order, directives, next situation + choices
         scenario_output = await self.scenario.advance(
             player_choice=player_choice,
             evaluation=evaluation,
             state=state,
+            drift=drift,
         )
         # Validate scenario structure — raises ValueError on bad output
         valid_actor_ids = [a.actor_id for a in state.actors]

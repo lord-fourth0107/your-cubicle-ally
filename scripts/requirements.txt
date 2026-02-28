@@ -1,2 +1,2 @@
 requests
-rich
+textual>=0.60
