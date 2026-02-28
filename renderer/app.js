@@ -123,13 +123,15 @@ let selectedScenarioId = "";
 let selectedModuleLabel = "";
 let worldData = { environment_image: null, actor_sprites: {} };
 const BACKEND_URL = "http://localhost:8000";
+let useMockBackend = false; // Use real backend; falls back to mock if backend unavailable
 let modulesData = []; // Fetched from GET /modules
+let isSubmittingTurn = false;
 
 // ============ DOM Elements ============
 const screens = {
   welcome: document.getElementById("welcome-screen"),
   setup: document.getElementById("setup-screen"),
-  worldSetup: document.getElementById("world-setup-screen"),
+  "world-setup": document.getElementById("world-setup-screen"),
   arena: document.getElementById("arena-screen"),
   debrief: document.getElementById("debrief-screen"),
 };
@@ -504,7 +506,12 @@ function escapeHtml(text) {
 }
 
 function submitChoice(choiceText) {
-  if (!choiceText) return;
+  if (!choiceText || isSubmittingTurn) return;
+  isSubmittingTurn = true;
+
+  arenaElements.choiceCards.querySelectorAll("button").forEach((b) => (b.disabled = true));
+  arenaElements.freeWriteInput.disabled = true;
+  arenaElements.submitFreeWriteBtn.disabled = true;
 
   showOverlay("thinking");
 
@@ -532,6 +539,7 @@ function applyGameState(data) {
   hideOverlay("thinking");
   const g = data.game_state || data;
   gameState = mapBackendGameState(g);
+  isSubmittingTurn = false;
   if (gameState.status === "lost") showOverlay("loss");
   else if (gameState.status === "won") showOverlay("win");
   renderArena();
@@ -567,6 +575,7 @@ function processMockTurn(playerChoice) {
     showOverlay("win");
   }
 
+  isSubmittingTurn = false;
   renderArena();
 }
 

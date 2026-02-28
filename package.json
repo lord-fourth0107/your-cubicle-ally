@@ -4,8 +4,8 @@
   "description": "Your Cubicle Ally - Onboarding companion",
   "main": "main.js",
   "scripts": {
-    "start": "ELECTRON_RUN_AS_NODE= electron .",
-    "dev": "ELECTRON_RUN_AS_NODE= electron ."
+    "start": "electron .",
+    "dev": "electron ."
   },
   "keywords": ["electron", "onboarding"],
   "author": "",
