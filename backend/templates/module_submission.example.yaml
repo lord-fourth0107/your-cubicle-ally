@@ -1,0 +1,79 @@
+module:
+  id: safety
+  name: "Workplace Safety"
+  description: "Practice immediate hazard response and escalation protocol."
+  version: "1.0"
+
+scenarios:
+  - id: safety_unmarked_spill_001
+    title: "Unmarked Chemical Spill"
+    max_steps: 6
+    starting_hp: 100
+    allow_early_resolution: true
+    scoring:
+      great: { min: 5, max: 15 }
+      good: { min: -5, max: 0 }
+      poor: { min: -15, max: -5 }
+      bad: { min: -25, max: -15 }
+    rubric:
+      goal: >
+        Identify an immediate floor hazard, prevent exposure, and route through
+        designated incident response.
+      key_concepts:
+        - Hazard containment
+        - Incident escalation
+        - PPE and access control
+      few_shot_examples:
+        - choice: "Block area, notify safety officer, log incident with location and time"
+          score: 92
+          reasoning: >
+            Contains risk quickly and follows formal reporting protocol.
+        - choice: "Ignore it for now because facilities will handle it eventually"
+          score: 18
+          reasoning: >
+            Leaves colleagues exposed and delays response.
+    entry_turn:
+      situation: >
+        During a late shift, you notice a clear liquid spill near an electrical
+        cabinet. Teammates are still walking through the area.
+      turn_order:
+        - rina
+        - sam
+      directives:
+        rina: "Push for immediate containment and formal incident reporting."
+        sam: "Minimize urgency and suggest waiting for facilities."
+      actor_reactions:
+        - actor_id: rina
+          dialogue: "Stop traffic here now. We need cones, PPE, and an incident ticket."
+        - actor_id: sam
+          dialogue: "It's probably just water. Let's not overreact."
+      choices_offered:
+        - label: "Block the area and call safety lead with exact location"
+          valence: positive
+        - label: "Wipe quickly and move on"
+          valence: neutral
+        - label: "Ignore it and continue work"
+          valence: negative
+    actors:
+      - actor_id: rina
+        persona: >
+          Safety-conscious engineer with strong procedural discipline.
+        role: >
+          Colleague advocating immediate containment and escalation.
+        personality: >
+          Calm, direct, protocol-driven.
+        skills:
+          - authority
+        tools: []
+      - actor_id: sam
+        persona: >
+          Deadline-driven coworker who downplays low-visibility risks.
+        role: >
+          Colleague resisting interruption and minimizing hazard severity.
+        personality: >
+          Practical, impatient, persuasive under time pressure.
+        skills:
+          - social_pressure
+          - deflection
+        tools: []
+

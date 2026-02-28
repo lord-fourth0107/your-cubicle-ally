@@ -37,6 +37,29 @@ pip install -r requirements.txt
 uvicorn api.main:app --reload --port 8000
 ```
 
+## Add a New Module (Template + Script)
+
+Use the backend module blueprint template and scaffolder:
+
+1. Copy and fill template:
+```bash
+cp backend/templates/module_submission.template.yaml /tmp/my_module.yaml
+```
+
+2. Validate planned output without writing:
+```bash
+python backend/scripts/scaffold_module.py --submission /tmp/my_module.yaml --dry-run
+```
+
+3. Generate module scenario YAML files:
+```bash
+python backend/scripts/scaffold_module.py --submission /tmp/my_module.yaml
+```
+
+Generated files are written to:
+- `backend/modules/<module_id>/scenarios/<scenario_id>.yaml`
+- `backend/modules/<module_id>/module.meta.yaml`
+
 ## Ownership Map
 
 | Folder | Owner | Key interfaces |

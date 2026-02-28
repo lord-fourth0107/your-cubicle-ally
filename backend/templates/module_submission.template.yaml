@@ -1,0 +1,91 @@
+# Module Blueprint Submission Template
+# -----------------------------------
+# Fill this file and run:
+#   python backend/scripts/scaffold_module.py --submission <filled_file.yaml>
+#
+# Output:
+#   backend/modules/<module_id>/scenarios/<scenario_id>.yaml
+#
+# Notes:
+# - Only backend content is generated.
+# - Script validates references (actor IDs in directives/turn_order/reactions).
+# - Scenario YAML output matches backend/utilities/module_loader.py schema.
+
+module:
+  id: your_module_id
+  name: "Your Module Display Name"
+  description: "What this module trains and why it exists."
+  version: "1.0"
+
+scenarios:
+  - id: your_module_id_scenario_001
+    title: "Scenario Title"
+    max_steps: 6
+    starting_hp: 100
+    allow_early_resolution: true
+
+    # Optional. If omitted, backend defaults are used.
+    scoring:
+      great: { min: 5, max: 15 }
+      good: { min: -5, max: 0 }
+      poor: { min: -15, max: -5 }
+      bad: { min: -25, max: -15 }
+
+    rubric:
+      goal: >
+        The player should demonstrate the target compliant behavior clearly.
+      key_concepts:
+        - Concept 1
+        - Concept 2
+      few_shot_examples:
+        - choice: "Best-practice response"
+          score: 92
+          reasoning: "Why this is strong."
+        - choice: "Weak or risky response"
+          score: 25
+          reasoning: "Why this is risky."
+
+    entry_turn:
+      situation: >
+        Opening context shown at scenario start.
+      turn_order:
+        - actor_one
+        - actor_two
+      directives:
+        actor_one: "How actor one should behave in opening turn."
+        actor_two: "How actor two should behave in opening turn."
+      actor_reactions:
+        - actor_id: actor_one
+          dialogue: "Opening line from actor one."
+        - actor_id: actor_two
+          dialogue: "Opening line from actor two."
+      choices_offered:
+        - label: "Best response"
+          valence: positive
+        - label: "Partial response"
+          valence: neutral
+        - label: "Risky response"
+          valence: negative
+
+    actors:
+      - actor_id: actor_one
+        persona: >
+          Persistent character identity.
+        role: >
+          Scenario-specific role.
+        personality: >
+          Behavioral traits and style.
+        skills:
+          - social_pressure
+        tools: []
+      - actor_id: actor_two
+        persona: >
+          Persistent character identity.
+        role: >
+          Scenario-specific role.
+        personality: >
+          Behavioral traits and style.
+        skills:
+          - authority
+        tools: []
+
