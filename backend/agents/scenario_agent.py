@@ -5,7 +5,7 @@ The orchestrator / game master agent. Drives the narrative,
 determines turn order and actor directives, and generates the
 next 3 player choices.
 
-Uses the Gemini SDK directly with JSON response mode.
+Uses the Gemini SDK (google-genai) with JSON response mode.
 
 Output contract:
   {
@@ -16,11 +16,6 @@ Output contract:
     branch_taken: str               # internal narrative branch label
   }
 
-Valence guidance by step:
-  - Early steps (1–2): lean ambiguous
-  - Mid steps (3–5): mixed
-  - Late steps (6+): lean clear
-
 Owner: Agents team
 Depends on: core/game_state, utilities/prompt_builder
 Depended on by: core/orchestrator
@@ -29,7 +24,8 @@ Depended on by: core/orchestrator
 import os
 import json
 from dataclasses import dataclass
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from ..core.game_state import GameState, Evaluation, Choice
 from ..utilities.prompt_builder import PromptBuilder
 
@@ -45,13 +41,8 @@ class ScenarioOutput:
 
 class ScenarioAgent:
     def __init__(self, prompt_builder: PromptBuilder):
-        genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
-        self.model = genai.GenerativeModel(
-            model_name=os.getenv("GEMINI_MODEL", "gemini-1.5-flash"),
-            generation_config=genai.GenerationConfig(
-                response_mime_type="application/json",
-            ),
-        )
+        self.client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
+        self.model_name = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
         self.prompt_builder = prompt_builder
 
     async def advance(
@@ -81,8 +72,13 @@ class ScenarioAgent:
             "  branch_taken (str — internal label for the narrative branch chosen)"
         )
 
-        response = await self.model.generate_content_async(
-            [system_prompt, user_message]
+        response = await self.client.aio.models.generate_content(
+            model=self.model_name,
+            contents=user_message,
+            config=types.GenerateContentConfig(
+                system_instruction=system_prompt,
+                response_mime_type="application/json",
+            ),
         )
 
         data = json.loads(response.text)

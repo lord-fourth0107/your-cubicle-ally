@@ -5,36 +5,47 @@ Coordinates all agent calls for a single turn.
 This is the main entry point for turn processing.
 
 Turn sequence:
-  1. Evaluator Agent   — judges player choice, returns hp_delta + reasoning
-  2. Scenario Agent    — determines turn order, directives, narrative branch, next choices
-  3. Actor Agents      — react in character per their directive (sequential per turn_order)
-  4. Session Manager   — applies the completed Turn to GameState
+  0. GuardrailAgent  — validates player input (rule-based + LLM for free-write)
+  1. Evaluator Agent — judges player choice, returns hp_delta + reasoning
+     → GuardrailAgent clamps evaluator output to valid bounds
+  2. Scenario Agent  — determines turn order, directives, narrative branch, next choices
+     → GuardrailAgent validates scenario structure
+  3. Actor Agents    — react in character per their directive (sequential per turn_order)
+     → GuardrailAgent fixes actor dialogue format
+  4. Session Manager — applies the completed Turn to GameState (persists to SQLite)
 
 Actor Agents are long-lived — one ActorAgent instance per actor per session,
-stored in actor_agents dict. This keeps the Gemini ChatSession alive across
-turns so each actor has genuine memory continuity.
+stored in actor_agents dict. This keeps the Chat alive across turns so each
+actor has genuine memory continuity.
 
 Owner: Core team
 Depends on: all agents, session_manager, game_state
 Depended on by: API routes
 """
 
-from .game_state import GameState, Turn
+from .game_state import GameState, SessionStatus, Turn
 from .session_manager import SessionManager
 from ..agents.evaluator_agent import EvaluatorAgent
 from ..agents.scenario_agent import ScenarioAgent
 from ..agents.actor_agent import ActorAgent
+from ..agents.guardrail_agent import GuardrailAgent
 from ..utilities.prompt_builder import PromptBuilder
 
 
 class Orchestrator:
-    def __init__(self, session_manager: SessionManager, prompt_builder: PromptBuilder):
+    def __init__(
+        self,
+        session_manager: SessionManager,
+        prompt_builder: PromptBuilder,
+        guardrail: GuardrailAgent,
+    ):
         self.session_manager = session_manager
         self.prompt_builder = prompt_builder
+        self.guardrail = guardrail
         self.evaluator = EvaluatorAgent(prompt_builder=prompt_builder)
         self.scenario = ScenarioAgent(prompt_builder=prompt_builder)
         # Keyed by session_id → { actor_id → ActorAgent }
-        # Keeps ChatSession alive across all turns for each actor
+        # Keeps Chat alive across all turns for each actor
         self._actor_agents: dict[str, dict[str, ActorAgent]] = {}
 
     def _get_or_create_actor_agents(
@@ -59,18 +70,21 @@ class Orchestrator:
 
     def reset_actors(self, session_id: str) -> None:
         """
-        Drop and recreate actor agents for a session restart (retry after loss).
-        Clears ChatSession history so the retry starts fresh.
-        Called by the retry API route before resetting GameState.
+        Drop actor agents for a retry — they will be recreated on the next
+        process_turn call with fresh Chat history.
         """
         self._actor_agents.pop(session_id, None)
-        # Actor agents will be recreated on the next process_turn call
 
     async def process_turn(self, session_id: str, player_choice: str) -> GameState:
         """
         Run a full turn cycle and return the updated GameState.
+        Guardrail checks are interleaved at each stage.
         """
         state = self.session_manager.get(session_id)
+
+        # Step 0: Guard player input — raises GuardrailViolation on failure
+        await self.guardrail.validate_player_input(player_choice, state)
+
         actor_agents = self._get_or_create_actor_agents(session_id, state)
 
         # Step 1: Evaluate the player's choice
@@ -78,6 +92,8 @@ class Orchestrator:
             player_choice=player_choice,
             state=state,
         )
+        # Clamp evaluator output to valid bounds (never crash on OOB values)
+        evaluation = self.guardrail.fix_evaluator_output(evaluation)
 
         # Step 2: Scenario Agent decides turn order, directives, next situation + choices
         scenario_output = await self.scenario.advance(
@@ -85,16 +101,21 @@ class Orchestrator:
             evaluation=evaluation,
             state=state,
         )
+        # Validate scenario structure — raises ValueError on bad output
+        valid_actor_ids = [a.actor_id for a in state.actors]
+        self.guardrail.validate_scenario_output(scenario_output, valid_actor_ids)
 
         # Step 3: Actor Agents react in turn order
-        # Update each acting actor's directive, then call react().
-        # ActorAgent.react() handles its own memory — we do not append here.
         actor_reactions = []
         for actor_id in scenario_output.turn_order:
             actor_instance = next(a for a in state.actors if a.actor_id == actor_id)
             actor_instance.current_directive = scenario_output.directives[actor_id]
             agent = actor_agents[actor_id]
             reaction = await agent.react(state=state)
+            # Fix actor dialogue format (strip quotes, detect narration)
+            reaction.dialogue = self.guardrail.fix_actor_dialogue(
+                reaction.dialogue, actor_id
+            )
             actor_reactions.append(reaction)
 
         # Step 4: Assemble the Turn and apply to session
@@ -111,4 +132,10 @@ class Orchestrator:
             narrative_branch=scenario_output.branch_taken,
         )
 
-        return self.session_manager.apply_turn(session_id, turn)
+        updated_state = self.session_manager.apply_turn(session_id, turn)
+
+        # Drop in-memory actor agents once the session is no longer active
+        if updated_state.status != SessionStatus.ACTIVE:
+            self.cleanup_session(session_id)
+
+        return updated_state

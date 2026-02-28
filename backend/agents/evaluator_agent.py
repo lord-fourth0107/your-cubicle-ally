@@ -4,7 +4,7 @@ agents/evaluator_agent.py
 Judges the player's choice against the scenario goal, rubric,
 and few-shot examples. Returns a structured Evaluation.
 
-Uses the Gemini SDK directly with JSON response mode.
+Uses the Gemini SDK (google-genai) with JSON response mode.
 
 Output contract:
   {
@@ -21,20 +21,16 @@ Depended on by: core/orchestrator
 
 import os
 import json
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from ..core.game_state import GameState, Evaluation
 from ..utilities.prompt_builder import PromptBuilder
 
 
 class EvaluatorAgent:
     def __init__(self, prompt_builder: PromptBuilder):
-        genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
-        self.model = genai.GenerativeModel(
-            model_name=os.getenv("GEMINI_MODEL", "gemini-1.5-flash"),
-            generation_config=genai.GenerationConfig(
-                response_mime_type="application/json",
-            ),
-        )
+        self.client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
+        self.model_name = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
         self.prompt_builder = prompt_builder
 
     async def evaluate(self, player_choice: str, state: GameState) -> Evaluation:
@@ -64,8 +60,13 @@ class EvaluatorAgent:
             "  is_critical_failure (bool)"
         )
 
-        response = await self.model.generate_content_async(
-            [system_prompt, user_message]
+        response = await self.client.aio.models.generate_content(
+            model=self.model_name,
+            contents=user_message,
+            config=types.GenerateContentConfig(
+                system_instruction=system_prompt,
+                response_mime_type="application/json",
+            ),
         )
 
         data = json.loads(response.text)
