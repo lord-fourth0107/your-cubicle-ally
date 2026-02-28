@@ -126,6 +126,7 @@ const BACKEND_URL = "http://localhost:8000";
 let useMockBackend = false; // Use real backend; falls back to mock if backend unavailable
 let modulesData = []; // Fetched from GET /modules
 let isSubmittingTurn = false;
+let ttsEnabled = localStorage.getItem("cubicle-ally-tts") !== "false";
 
 // ============ DOM Elements ============
 const screens = {
@@ -301,7 +302,12 @@ async function startScenario() {
 // ============ World Setup (Generative) ============
 function showWorldSetup() {
   showScreen("world-setup");
-  worldData = { environment_image: null, actor_sprites: {} };
+  worldData = {
+    environment_image: null,
+    environment_frames: [],
+    actor_sprites: {},
+    actor_animations: {},
+  };
   updateWorldStep("env", "active", "Generating...");
   updateWorldStep("sprites", "pending", "Waiting...");
   updateWorldStep("ready", "pending", "Waiting...");
@@ -384,6 +390,7 @@ function resetGameState() {
 // ============ Arena ============
 function enterArena() {
   showScreen("arena");
+  updateTTSButtonState();
   renderWorldScene();
   renderArena();
   hideAllOverlays();
@@ -400,18 +407,50 @@ function renderWorldScene() {
   const spritesEl = document.getElementById("world-sprites");
   if (!envEl || !spritesEl) return;
 
-  if (worldData.environment_image) {
+  // Animated environment: crossfade between frames or single image with Ken Burns
+  const envFrames = worldData.environment_frames || [];
+  if (envFrames.length >= 2) {
+    envEl.innerHTML = envFrames
+      .map(
+        (src, i) =>
+          `<div class="env-frame env-frame-${i}" style="background-image:url(${src})"></div>`
+      )
+      .join("");
+    envEl.classList.add("env-animated");
+  } else if (worldData.environment_image) {
+    envEl.innerHTML = "";
     envEl.style.backgroundImage = `url(${worldData.environment_image})`;
+    envEl.classList.add("env-kenburns");
+    envEl.classList.remove("env-animated");
   } else {
+    envEl.innerHTML = "";
     envEl.style.backgroundImage = "";
+    envEl.classList.remove("env-animated", "env-kenburns");
   }
 
   const speakingIds = new Set(gameState.current_actor_reactions.map((r) => r.actor_id));
+  const animFrames = worldData.actor_animations || {};
+
   spritesEl.innerHTML = actors
     .map((a) => {
-      const src = getActorAvatarUrl(a.actor_id, worldData.actor_sprites?.[a.actor_id]);
+      const frames = animFrames[a.actor_id];
       const speaking = speakingIds.has(a.actor_id) ? " speaking" : "";
       const speechIndicator = speaking ? '<span class="sprite-speaking-badge"></span>' : "";
+
+      if (frames && frames.length > 1) {
+        const imgs = frames
+          .map(
+            (src, i) =>
+              `<img class="sprite-frame" data-frame="${i}" src="${src}" alt="" />`
+          )
+          .join("");
+        return `<div class="world-sprite-wrapper sprite-animated${speaking}" data-actor-id="${a.actor_id}" data-frames="${frames.length}">
+          <div class="sprite-frames">${imgs}</div>
+          ${speechIndicator}
+        </div>`;
+      }
+
+      const src = getActorAvatarUrl(a.actor_id, worldData.actor_sprites?.[a.actor_id]);
       return `<div class="world-sprite-wrapper${speaking}" data-actor-id="${a.actor_id}">
         <img class="world-sprite" src="${src}" alt="${escapeHtml(a.name || a.actor_id)}" title="${escapeHtml(a.name || a.actor_id)}" />
         ${speechIndicator}
@@ -460,6 +499,7 @@ function renderArena() {
   }
 
   // Actor reactions from last turn (interactive dialogue bubbles)
+  const reactionsToPlay = [...gameState.current_actor_reactions];
   arenaElements.actorReactions.innerHTML = gameState.current_actor_reactions
     .map(
       (r) => {
@@ -473,6 +513,11 @@ function renderArena() {
       }
     )
     .join("");
+
+  // Play dialogue audio (live voice) if TTS enabled
+  if (ttsEnabled && reactionsToPlay.length > 0) {
+    playDialogueAudio(reactionsToPlay);
+  }
 
   // Highlight speaking actors in sidebar
   arenaElements.actorCards.querySelectorAll(".actor-card").forEach((card) => {
@@ -513,6 +558,32 @@ function renderArena() {
 function getActorName(actorId) {
   const a = actors.find((x) => x.actor_id === actorId);
   return a ? a.name || actorId : actorId;
+}
+
+// ============ TTS / Live Voice Dialogue ============
+async function playDialogueAudio(reactions) {
+  for (const r of reactions) {
+    if (!ttsEnabled || !r.dialogue?.trim()) continue;
+    try {
+      const res = await fetch(`${BACKEND_URL}/tts/speech/base64`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: r.dialogue, actor_id: r.actor_id }),
+      });
+      if (!res.ok) break;
+      const { audio } = await res.json();
+      if (!audio) continue;
+      await new Promise((resolve, reject) => {
+        const el = new Audio(audio);
+        el.onended = resolve;
+        el.onerror = reject;
+        el.play().catch(reject);
+      });
+    } catch (err) {
+      console.warn("TTS playback failed:", err);
+      break;
+    }
+  }
 }
 
 function escapeHtml(text) {
@@ -684,3 +755,17 @@ document.getElementById("back-to-setup-btn").addEventListener("click", () => {
   showScreen("setup");
   loadModules();
 });
+
+document.getElementById("tts-toggle-btn")?.addEventListener("click", () => {
+  ttsEnabled = !ttsEnabled;
+  localStorage.setItem("cubicle-ally-tts", ttsEnabled.toString());
+  updateTTSButtonState();
+});
+
+function updateTTSButtonState() {
+  const btn = document.getElementById("tts-toggle-btn");
+  if (!btn) return;
+  const icon = btn.querySelector(".tts-icon");
+  if (icon) icon.textContent = ttsEnabled ? "🔊" : "🔇";
+  btn.classList.toggle("muted", !ttsEnabled);
+}
