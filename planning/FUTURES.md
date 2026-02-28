@@ -11,6 +11,7 @@ These are validated directions, not speculation. Each one has a clear "why" and 
 |---|---|---|---|
 | F1 | **Configurable content intensity** — a `tone` field in module YAML (`"restrained"` or `"clinical"`) lets organizations tune how realistic/uncomfortable scenarios feel | P10 decision | Enterprise clients will have different policies; one size won't fit all |
 | F2 | **Custom module builder** — HR/L&D teams author their own scenarios via a UI, no YAML editing required | COMPONENTS.md | Unlocks the platform for any compliance topic, not just bundled ones |
+| F2b | **Rich resume parsing** — deeper extraction from resumes (skills, projects, seniority signals) to more precisely tailor scenario framing | M3 decision | MVP falls back to a default persona if parsing is ambiguous; future versions should handle complex resumes gracefully |
 | F3 | **Jurisdiction-aware modules** — modules declare a `jurisdiction` field (e.g. `IN`, `EU`, `US`) so POSH (India), GDPR (EU), and EEOC (US) can coexist in the same registry | OPEN_QUESTIONS.md | Compliance law is region-specific; a global org needs region-specific training |
 
 ---

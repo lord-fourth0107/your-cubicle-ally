@@ -17,9 +17,8 @@ from pydantic import BaseModel
 
 class SessionStatus(str, Enum):
     ACTIVE = "active"
-    WON = "won"
-    LOST = "lost"
-    COMPLETE = "complete"
+    WON = "won"   # all steps completed with HP > 0 → go to debrief
+    LOST = "lost" # HP hit 0 or critical failure → retry or debrief
 
 
 class Choice(BaseModel):
@@ -46,7 +45,7 @@ class Turn(BaseModel):
     directives: dict[str, str]                   # actor_id → directive
     actor_reactions: list[ActorReaction]
     choices_offered: list[Choice]
-    player_choice: str
+    player_choice: str = ""          # empty on the entry turn (no player action yet)
     evaluation: Optional[Evaluation] = None
     hp_delta: int = 0
     narrative_branch: str = ""

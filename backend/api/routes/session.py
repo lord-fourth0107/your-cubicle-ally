@@ -44,7 +44,11 @@ async def retry_session(session_id: str):
     Reset the session to step 0 with full HP, same scenario.
     Only valid when status is "lost".
 
-    TODO: implement reset logic in SessionManager.
+    Steps:
+      1. orchestrator.reset_actors(session_id) — clears ChatSession history
+      2. session_manager.reset(session_id) — resets HP, step, history, status to ACTIVE
+
+    TODO: implement reset logic in SessionManager and wire up orchestrator.
     """
     raise NotImplementedError
 

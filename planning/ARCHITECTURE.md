@@ -33,7 +33,7 @@
 │  │  ┌─────────────────────────────────────────────────────┐   │    │
 │  │  │              SCENARIO AGENT (Orchestrator)           │   │    │
 │  │  │  - Drives the narrative                             │   │    │
-│  │  │  - Broadcasts state updates to all Actor Agents     │   │    │
+│  │  │  - Dispatches updates to actors per turn order       │   │    │
 │  │  │  - Generates 3 options: positive / neutral / neg    │   │    │
 │  │  │  - Decides how scenario branches after player acts  │   │    │
 │  │  └──────────────┬──────────────────────────────────────┘   │    │
@@ -63,6 +63,46 @@
 │  └─────────────────────────────────────────────────────────────┘    │
 └─────────────────────────────────────────────────────────────────────┘
 ```
+
+---
+
+## Context Model
+
+Every agent operates from one or both of two context layers:
+
+```
+┌──────────────────────────────────────────────────────┐
+│                  SHARED CONTEXT                      │
+│  scenario goal + setup | player profile              │
+│  actor roster (names, roles, personalities)          │
+│  full turn history (situations, choices, reactions,  │
+│  evaluations) | module rubric                        │
+│                                                      │
+│  Read by: Scenario Agent, Evaluator, Coach Agent     │
+│           and Actor Agents (as grounding)            │
+└──────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────┐
+│            PER-ACTOR HISTORY (one per actor)         │
+│  This actor's own dialogue across all turns          │
+│  Maintained as a Gemini ChatSession                  │
+│                                                      │
+│  Read by: Actor Agents only                          │
+└──────────────────────────────────────────────────────┘
+```
+
+**What each agent sees:**
+
+| Agent | Shared Context | Per-Actor History |
+|---|---|---|
+| Scenario Agent | ✅ Full | ✗ |
+| Actor Agent | ✅ As grounding | ✅ Own history only |
+| Evaluator Agent | ✅ Full + module rubric | ✗ |
+| Coach Agent | ✅ Full | ✗ |
+
+**HP rule:** Drain only — bad answers reduce HP, good answers do not recover it. Max penalty per turn is -40. Gradient scoring: hp_delta scales proportionally to the 0–100 score.
+
+**Actor cap:** Maximum 3 Actor Agents per scenario.
 
 ---
 
@@ -141,23 +181,27 @@ character        character
 GameState {
   session_id: string
   player_profile: PlayerProfile
-  active_module: Module
-  active_scenario: Scenario
+  module_id: string             // references a module in the registry
+  scenario_id: string           // references a scenario within the module
   actors: ActorInstance[]       // active Actor Agents for this scenario
   current_step: number
   max_steps: number
   player_hp: number             // starts at 100
   history: Turn[]
-  status: "active" | "won" | "lost" | "complete"
+  status: "active" | "won" | "lost"
+                                // won = all steps done with HP > 0 → debrief
+                                // lost = HP hit 0 or critical failure → retry or debrief
 }
 
 ActorInstance {
   actor_id: string
-  persona: string               // system prompt / character definition
-  skills: Skill[]
-  tools: Tool[]
-  memory: Message[]             // running history of everything this actor has seen/said
-  current_directive: string     // set by Scenario Agent each turn — what this actor should do NOW
+  persona: string               // who this actor is (base character definition)
+  role: string                  // their function in this specific scenario
+  personality: string           // behavioral traits for this scenario
+  skills: string[]              // skill ids — resolved to Skill objects by SkillRegistry
+  tools: string[]               // tool ids — resolved at runtime
+  memory: Message[]             // this actor's dialogue history (synced from ChatSession)
+  current_directive: string     // set by Scenario Agent each turn
                                 // e.g. "Stay quiet, let Actor B escalate first"
                                 //      "Apply more pressure — the player is avoiding the issue"
                                 //      "Soften slightly — the player responded well"
@@ -166,12 +210,12 @@ ActorInstance {
 Turn {
   step: number
   situation: string             // Scenario Agent's narrative update
-  turn_order: ActorId[]         // which actors acted this turn, in sequence
-  directives: { [actor_id]: string }  // what the Scenario Agent told each actor to do
-  actor_reactions: ActorReaction[]    // each acting actor's response this turn
-  choices_offered: Choice[]     // 3 options: positive / neutral / negative
-  player_choice: string
-  evaluation: Evaluation
+  turn_order: ActorId[]              // which actors acted this turn, in sequence
+  directives: { [actor_id]: string } // what the Scenario Agent told each actor to do
+  actor_reactions: ActorReaction[]   // each acting actor's response this turn
+  choices_offered: Choice[]          // 3 options: positive / neutral / negative
+  player_choice: string              // empty string on the entry turn (no player action yet)
+  evaluation: Evaluation | null      // null on the entry turn
   hp_delta: number
   narrative_branch: string      // which branch the scenario took
 }
@@ -198,7 +242,7 @@ Evaluation {
 | Game Environment | Electron + React | ✅ Confirmed | Desktop app; renderer process for all UI |
 | Backend | Python / FastAPI | ✅ Confirmed | Spawned as child process by Electron main; renderer calls localhost HTTP |
 | Agent Framework | google-generativeai SDK | ✅ Confirmed | Direct Gemini SDK — ChatSession for actor memory, JSON mode for structured outputs |
-| LLM | Google Gemini Flash | ✅ Confirmed | Fast, cost-efficient; used for all agent calls via LlamaIndex |
+| LLM | Google Gemini Flash | ✅ Confirmed | Fast, cost-efficient; used for all agent calls via google-generativeai SDK |
 | State | In-memory (session) + SQLite | 🟡 Leaning | SQLite fits local Electron deployment; no external DB needed |
 | Module Definitions | YAML files | ✅ Confirmed | Bundled with app, version-controlled, authorable by non-devs |
 | Packaging | PyInstaller + Electron Builder | 🟡 Leaning | Bundle frozen Python binary alongside Electron app |

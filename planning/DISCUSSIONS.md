@@ -5,6 +5,43 @@ Add entries in reverse-chronological order (newest at the top).
 
 ---
 
+## [2026-02-28] — All Open Questions Resolved
+
+**Topic:** Final resolution sweep across all remaining questions
+
+**Decisions:**
+- **MVP module:** POSH. Frontend manages module + scenario selection. 1 scenario per module to start; architecture supports fetching more.
+- **Resume upload:** Supported. Falls back to default persona ("Mid-level professional, general industry") if parsing is too ambiguous.
+- **Debrief:** Full Coach Agent debrief — not a score screen.
+- **Latency UX:** Actor portrait pulses while agents process. Actor dialogue streams character-by-character via Gemini streaming.
+- **Skill loading:** Baked into actor prompt at session start by PromptBuilder. No per-turn loading.
+- **Module validation:** Pydantic in ModuleLoader at startup. Invalid modules excluded with warning, app continues.
+- **Skill injection:** Appended after persona + role blocks in actor prompt, each delimited. Handled by PromptBuilder.
+- **Skill evolution / visibility / breaking:** All deferred to Futures. Fixed, hidden for MVP.
+- **Conflicting skills:** SkillRegistry validates at load time. Lower-priority skill dropped with warning.
+- **"Things to think about":** All acknowledged and either covered by existing decisions or deferred to Futures.
+
+**Status:** All open questions resolved. Ready to build.
+
+---
+
+## [2026-02-28] — Context Model, HP Rules & Agent Caps
+
+**Topic:** Resolving agent context, HP mechanics, and max actors
+
+**Decisions:**
+- **HP:** Drain only. No recovery on good answers. Max -40 per turn. Gradient: hp_delta scales to score (0–100).
+- **Player hints:** None. Valence is fully hidden.
+- **Free-write scoring:** Gradient — continuous 0–100 score, no binary pass/fail.
+- **Context model — two layers:**
+  - *Shared context*: scenario goal, setup, actor roster, player profile, full turn history, module rubric. Read by Scenario Agent, Evaluator, Coach Agent, and Actors (as grounding).
+  - *Per-actor history*: each actor's own dialogue across turns, maintained as a Gemini ChatSession. Read by that actor only.
+- **Evaluator grounding:** Static rubrics from module YAML + shared context. No RAG for MVP.
+- **Max actors:** 3 hard cap per scenario.
+- **Scenario Agent:** Uses shared context (which includes actor reactions per turn) — sees everything.
+
+---
+
 ## [2026-02-28] — Scenario Schema & Evaluator Design
 
 **Topic:** Enriching the scenario definition and Evaluator calibration approach

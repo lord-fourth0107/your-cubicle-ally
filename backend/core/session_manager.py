@@ -48,6 +48,24 @@ class SessionManager:
         self._sessions[session_id] = state
         return state
 
+    def reset(self, session_id: str) -> GameState:
+        """
+        Reset a lost session for retry: same scenario, HP back to 100,
+        step back to 0, history cleared, status back to ACTIVE.
+        Actors are reset separately via Orchestrator.reset_actors().
+        """
+        state = self.get(session_id)
+        state.player_hp = 100
+        state.current_step = 0
+        state.history = []
+        state.status = SessionStatus.ACTIVE
+        # Clear actor memory so actors start fresh too
+        for actor in state.actors:
+            actor.memory = []
+            actor.current_directive = ""
+        self._sessions[session_id] = state
+        return state
+
     def delete(self, session_id: str) -> None:
         """Clean up a completed session."""
         self._sessions.pop(session_id, None)

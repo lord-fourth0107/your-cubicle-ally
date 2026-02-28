@@ -1,14 +1,19 @@
 """
 utilities/prompt_builder.py
 ---------------------------
-Assembles the full system prompt for any agent by composing:
-  - the agent's base prompt template
-  - skill injections (from the actor's assigned skills)
-  - current scenario context (goal, setup, actor role/personality)
-  - memory / turn history
+Assembles prompts for all agents.
 
-This is the core of the skill system — skills are prompt_injections
-that get woven into the actor's system prompt here.
+Actor prompts are split into two parts:
+  - build_actor_system_prompt() — STATIC, set once as system_instruction at actor init.
+      Contains: persona, role, personality, skill injections, scenario goal + setup.
+  - Dynamic turn message — NOT built here. ActorAgent constructs it inline:
+      "Situation: ...\nYour directive: ..."
+
+All other agents (Evaluator, Scenario, Coach) use single-call prompts
+assembled by their respective build_*_prompt() methods.
+
+Skill injection strategy (decided):
+  Skills are appended after personality, each clearly delimited.
 
 Owner: Utilities team
 Depends on: skills/skill_registry, core/game_state
@@ -23,20 +28,23 @@ class PromptBuilder:
     def __init__(self, skill_registry: SkillRegistry):
         self.registry = skill_registry
 
-    def build_actor_prompt(self, actor: ActorInstance, scenario_context: dict) -> str:
+    def build_actor_system_prompt(self, actor: ActorInstance, scenario_context: dict) -> str:
         """
-        Build the full system prompt for an Actor Agent.
+        Build the STATIC system prompt for an Actor Agent.
+        Called once at session start, set as system_instruction on the GenerativeModel.
 
         Structure:
-          [PERSONA]         — who the actor is
-          [ROLE]            — their function in this scenario
-          [PERSONALITY]     — how they behave in this scenario
-          [SKILLS]          — injected prompt fragments from each skill
-          [DIRECTIVE]       — what the Scenario Agent needs from them this turn
-          [SCENARIO CONTEXT]— goal and setup, for grounding
+          [PERSONA]           — who the actor is
+          [ROLE]              — their function in this scenario
+          [PERSONALITY]       — how they behave in this scenario
+          [SKILLS]            — injected prompt fragments from each assigned skill,
+                                each clearly delimited for debuggability
+          [SCENARIO CONTEXT]  — scenario goal + setup, so the actor is grounded
+                                in the situation from turn one
 
-        Skill injection strategy: skills are appended after personality,
-        each clearly delimited so they can be debugged independently.
+        Skills are appended after personality, each wrapped in a clear delimiter.
+        The directive and current situation are NOT here — they change every turn
+        and are passed as the user message in ActorAgent.react().
 
         TODO: implement prompt assembly logic.
         """
@@ -46,7 +54,8 @@ class PromptBuilder:
         """
         Build the system prompt for the Evaluator Agent.
 
-        Includes: goal, setup, rubric, few-shot examples, turn history.
+        Includes: scenario goal, setup, actor roster, module rubric,
+        few-shot evaluation examples, full turn history.
 
         TODO: implement prompt assembly logic.
         """
@@ -56,8 +65,8 @@ class PromptBuilder:
         """
         Build the system prompt for the Scenario Agent.
 
-        Includes: goal, setup, all actor roles/personalities, turn history,
-        current step (for valence calibration of choices).
+        Includes: scenario goal, setup, all actor roles/personalities,
+        full turn history, current step number (for choice valence calibration).
 
         TODO: implement prompt assembly logic.
         """
