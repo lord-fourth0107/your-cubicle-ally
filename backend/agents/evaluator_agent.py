@@ -55,7 +55,7 @@ class EvaluatorAgent:
             f"The player responded: \"{player_choice}\"\n\n"
             "Return a JSON object with exactly these fields:\n"
             "  score (int 0-100)\n"
-            "  hp_delta (int, negative means damage, max -40)\n"
+            "  hp_delta (int, negative means damage, max penalty -25, max gain +15)\n"
             "  reasoning (str, 1-2 sentences explaining the score)\n"
             "  is_critical_failure (bool)"
         )

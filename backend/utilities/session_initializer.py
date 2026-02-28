@@ -82,7 +82,10 @@ class SessionInitializer:
             actors=actors,
             current_step=0,
             max_steps=scenario.max_steps,
-            player_hp=100,
+            starting_hp=scenario.starting_hp,
+            player_hp=scenario.starting_hp,
+            scoring=scenario.scoring,
+            allow_early_resolution=scenario.allow_early_resolution,
             history=[entry_turn],
             status=SessionStatus.ACTIVE,
         )

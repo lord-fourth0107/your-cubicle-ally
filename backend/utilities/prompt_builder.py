@@ -21,7 +21,7 @@ Depended on by: all agent classes
 """
 
 from ..skills.skill_registry import SkillRegistry
-from ..core.game_state import ActorInstance
+from ..core.game_state import ActorInstance, ScoringConfig
 from .module_loader import ModuleLoader, ScenarioData
 
 
@@ -208,7 +208,12 @@ Bad examples (do NOT do this):
 
         player_hp = scenario_context.get("player_hp", 100)
         current_step = scenario_context.get("current_step", 0)
-        max_steps = scenario_context.get("max_steps", 6)
+        max_steps = scenario_context.get("max_steps", 10)
+
+        # Scoring config — read from game state, fall back to defaults
+        raw_scoring = scenario_context.get("scoring")
+        scoring = ScoringConfig.model_validate(raw_scoring) if raw_scoring else ScoringConfig()
+
         arc_phase = _narrative_arc_phase(current_step, max_steps)
 
         final_turn_note = (
@@ -250,8 +255,12 @@ Current situation: {current_situation.strip()[:300]}
 - Score 50–79: Player takes partial action — supportive but incomplete, or indirect.
 - Score 20–49: Player avoids the situation, deflects, or takes a neutral/passive stance.
 - Score 0–19: Player endorses or amplifies the harmful behaviour.
-- hp_delta: Derive from score. Score ≥80 → 0 to +10. Score 50–79 → -5 to -15. Score 20–49 → -15 to -25. Score <20 → -25 to -40.
-- is_critical_failure: true only if the player actively makes the situation worse (e.g. joins in, intimidates Claire, prevents reporting).
+- hp_delta: Derive from score using this scenario's bands:
+    Score ≥80  → {scoring.great.min} to {scoring.great.max} HP
+    Score 50–79 → {scoring.good.min} to {scoring.good.max} HP
+    Score 20–49 → {scoring.poor.min} to {scoring.poor.max} HP
+    Score <20   → {scoring.bad.min} to {scoring.bad.max} HP
+- is_critical_failure: true only if the player actively and deliberately makes the situation significantly worse (e.g. joins in harassment, directly intimidates the target, explicitly prevents them from reporting). Do NOT flag passive or unhelpful choices as critical failures.
 - reasoning: 1–2 concise sentences grounding the score in compliance principles. Avoid jargon.
 """.strip()
 
@@ -379,7 +388,13 @@ Step {current_step} of {max_steps} | {steps_remaining} turn(s) remaining | Playe
   No player choices embedded in the text. Must reflect the arc guidance above.
 - next_choices: exactly 3 objects — one each of "positive", "neutral", "negative" valence.
   Each must be a realistic, specific action for a professional workplace context.
+  Still required even if early_resolution is true (they will be discarded).
 - branch_taken: a short snake_case label for this narrative branch (debugging only).
+- early_resolution: Set to true ONLY when the conflict is genuinely resolved and continuing
+  would feel artificial or repetitive. Criteria: the harmful behaviour has stopped, the target
+  is supported, accountability has been established (or realistically initiated), AND the player
+  has shown a clear pattern of positive bystander action. Do NOT set true after a single good
+  turn — require meaningful cumulative progress. Default false.
 
 Build on what has happened before. Stay grounded in the workplace setting.
 """.strip()

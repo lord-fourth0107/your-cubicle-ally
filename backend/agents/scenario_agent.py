@@ -37,6 +37,7 @@ class ScenarioOutput:
     situation_summary: str
     next_choices: list[Choice]
     branch_taken: str
+    early_resolution: bool = False
 
 
 class ScenarioAgent:
@@ -69,7 +70,8 @@ class ScenarioAgent:
             "  directives (object mapping actor_id to a directive string)\n"
             "  situation_summary (str — the narrative shown to the player)\n"
             "  next_choices (list of 3 objects: { label: str, valence: 'positive'|'neutral'|'negative' })\n"
-            "  branch_taken (str — internal label for the narrative branch chosen)"
+            "  branch_taken (str — internal label for the narrative branch chosen)\n"
+            "  early_resolution (bool — true only if the situation is genuinely resolved and continuing would feel artificial)"
         )
 
         response = await self.client.aio.models.generate_content(
@@ -82,5 +84,11 @@ class ScenarioAgent:
         )
 
         data = json.loads(response.text)
-        data["next_choices"] = [Choice(**c) for c in data["next_choices"]]
-        return ScenarioOutput(**data)
+        return ScenarioOutput(
+            turn_order=data["turn_order"],
+            directives=data["directives"],
+            situation_summary=data["situation_summary"],
+            next_choices=[Choice(**c) for c in data["next_choices"]],
+            branch_taken=data["branch_taken"],
+            early_resolution=bool(data.get("early_resolution", False)),
+        )
