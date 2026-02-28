@@ -127,15 +127,16 @@ def _hp_markup(hp: int, max_hp: int = 100) -> str:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Setup steps
+# Profile setup steps  (name → role → seniority → domain → resume)
+# After these complete, a dynamic scenario picker fetches /modules.
 # ─────────────────────────────────────────────────────────────────────────────
 
 _SETUP_STEPS: list[tuple[str, str, str]] = [
-    ("name",      "Your first name",    ""),
-    ("role",      "Job role",           "Software Engineer"),
-    ("seniority", "Seniority level",    "Mid-level"),
-    ("domain",    "Domain / industry",  "Technology"),
-    ("module",    "Module ID",          "posh"),
+    ("name",      "Your first name",                                         "Player"),
+    ("role",      "Job role",                                                "Software Engineer"),
+    ("seniority", "Seniority level",                                         "Mid-level"),
+    ("domain",    "Domain / industry",                                       "Technology"),
+    ("resume",    "Paste resume or context  [dim](Enter to skip)[/dim]",     ""),
 ]
 
 
@@ -268,7 +269,10 @@ class CubicleAllyApp(App[None]):
     }
     """
 
-    BINDINGS = [("q", "quit", "Quit")]
+    BINDINGS = [
+        ("q", "quit", "Quit"),
+        ("n", "new_session", "New Session"),
+    ]
 
     def __init__(self, base_url: str = DEFAULT_URL) -> None:
         super().__init__()
@@ -278,6 +282,12 @@ class CubicleAllyApp(App[None]):
         self._setup_idx: int = 0
         self._setup_vals: dict[str, str] = {}
 
+        # Scenario picker state (populated after profile steps complete)
+        self._scenario_list: list[tuple[str, str]] = []  # [(module_id, scenario_id), ...]
+        self._chosen_module_id: str = ""
+        self._chosen_scenario_id: str = ""
+        self._picking_scenario: bool = False  # True while waiting for scenario number input
+
         # Game state
         self._session_id: Optional[str] = None
         self._game_state: Optional[dict] = None
@@ -286,7 +296,8 @@ class CubicleAllyApp(App[None]):
         # Input mode flags — mutually exclusive per turn
         self._awaiting: bool = False   # player can type
         self._freewrite: bool = False  # in free-write sub-mode
-        self._lost_mode: bool = False  # game-over, waiting for R/D
+        self._lost_mode: bool = False  # game-over via loss, waiting for R/D
+        self._won_mode: bool = False   # game-over via win, waiting for D
 
     # ── Compose ──────────────────────────────────────────────────────────────
 
@@ -350,39 +361,55 @@ class CubicleAllyApp(App[None]):
     # ── Setup flow ────────────────────────────────────────────────────────────
 
     def _advance_setup(self) -> None:
-        if self._setup_idx >= len(_SETUP_STEPS):
-            self._begin_session()
-            return
-
-        key, label, default = _SETUP_STEPS[self._setup_idx]
-        hint = f"  [dim](default: {default})[/dim]" if default else ""
-        self.query_one("#setup-field-label", Label).update(
-            f"[bold]{label}[/bold]{hint}"
-        )
-        inp = self.query_one("#setup-input", Input)
-        inp.placeholder = default
-        inp.value = ""
-        self.query_one("#setup-progress", Label).update(
-            f"[dim]{self._setup_idx + 1} / {len(_SETUP_STEPS)}[/dim]"
-        )
-        inp.focus()
+        """Step through profile fields; when done, trigger scenario picker."""
+        if self._setup_idx < len(_SETUP_STEPS):
+            key, label, default = _SETUP_STEPS[self._setup_idx]
+            hint = f"  [dim](default: {default})[/dim]" if default else ""
+            self.query_one("#setup-field-label", Label).update(
+                f"[bold]{label}[/bold]{hint}"
+            )
+            inp = self.query_one("#setup-input", Input)
+            inp.placeholder = default
+            inp.value = ""
+            self.query_one("#setup-progress", Label).update(
+                f"[dim]{self._setup_idx + 1} / {len(_SETUP_STEPS) + 1}[/dim]"
+            )
+            inp.focus()
+        else:
+            # Profile complete — fetch modules and show scenario picker
+            self._load_scenarios_for_picker()
 
     @on(Input.Submitted, "#setup-input")
     def _on_setup_submitted(self, event: Input.Submitted) -> None:
+        if self._picking_scenario:
+            self._on_scenario_number_entered(event.value.strip())
+            return
+
+        if self._setup_idx >= len(_SETUP_STEPS):
+            return
+
         key, _, default = _SETUP_STEPS[self._setup_idx]
         self._setup_vals[key] = event.value.strip() or default
         self._setup_idx += 1
         self._advance_setup()
 
-    # ── Session start ─────────────────────────────────────────────────────────
+    # ── Scenario picker ───────────────────────────────────────────────────────
 
-    def _begin_session(self) -> None:
-        self._set_status("Connecting to backend…")
-        self._log("[yellow]Connecting to backend…[/yellow]")
-        self._session_start_worker()
+    def _load_scenarios_for_picker(self) -> None:
+        self._picking_scenario = False
+        self.query_one("#setup-field-label", Label).update(
+            "[dim]Loading scenarios from backend…[/dim]"
+        )
+        inp = self.query_one("#setup-input", Input)
+        inp.disabled = True
+        inp.placeholder = "Loading…"
+        self.query_one("#setup-progress", Label).update(
+            f"[dim]{len(_SETUP_STEPS) + 1} / {len(_SETUP_STEPS) + 1}[/dim]"
+        )
+        self._fetch_scenarios_worker()
 
     @work(thread=True)
-    def _session_start_worker(self) -> None:
+    def _fetch_scenarios_worker(self) -> None:
         for attempt in range(1, 16):
             try:
                 _get(self.base_url, "/health", timeout=5)
@@ -399,7 +426,62 @@ class CubicleAllyApp(App[None]):
                 )
                 time.sleep(2)
 
-        self.call_from_thread(self._log, "[green]Backend connected.[/green]")
+        try:
+            modules = _get(self.base_url, "/modules")
+        except Exception as exc:
+            self.call_from_thread(self._fatal, f"Failed to load modules: {exc}")
+            return
+        self.call_from_thread(self._show_scenario_picker, modules)
+
+    def _show_scenario_picker(self, modules: list) -> None:
+        """Build numbered scenario list and prompt the user to pick one."""
+        self._scenario_list = []
+        lines: list[str] = ["[bold]Choose a scenario — type the number and press Enter[/bold]\n"]
+        n = 1
+        for mod in modules:
+            module_id = mod.get("module_id", "")
+            module_name = mod.get("title") or module_id
+            lines.append(f"[cyan bold]{module_name}[/cyan bold]")
+            for scenario in mod.get("scenarios", []):
+                scenario_id = scenario.get("id", "")
+                title = scenario.get("title", scenario_id)
+                lines.append(f"  [yellow][{n}][/yellow]  {title}")
+                self._scenario_list.append((module_id, scenario_id))
+                n += 1
+
+        self.query_one("#setup-field-label", Label).update("\n".join(lines))
+        inp = self.query_one("#setup-input", Input)
+        inp.disabled = False
+        inp.placeholder = f"Enter 1–{n - 1}"
+        inp.value = ""
+        inp.focus()
+        self._picking_scenario = True
+        self._set_status("Choose a scenario number then press Enter")
+
+    def _on_scenario_number_entered(self, raw: str) -> None:
+        try:
+            choice = int(raw)
+        except ValueError:
+            self._set_status("[red]Enter a valid number[/red]")
+            return
+
+        if choice < 1 or choice > len(self._scenario_list):
+            self._set_status(f"[red]Enter a number between 1 and {len(self._scenario_list)}[/red]")
+            return
+
+        self._chosen_module_id, self._chosen_scenario_id = self._scenario_list[choice - 1]
+        self._picking_scenario = False
+        self._begin_session()
+
+    # ── Session start ─────────────────────────────────────────────────────────
+
+    def _begin_session(self) -> None:
+        self._set_status("Starting session…")
+        self._log("[yellow]Starting session…[/yellow]")
+        self._session_start_worker()
+
+    @work(thread=True)
+    def _session_start_worker(self) -> None:
         sv = self._setup_vals
         try:
             data = _post(self.base_url, "/session/start", {
@@ -408,9 +490,10 @@ class CubicleAllyApp(App[None]):
                     "role":        sv.get("role", "Software Engineer"),
                     "seniority":   sv.get("seniority", "Mid-level"),
                     "domain":      sv.get("domain", "Technology"),
-                    "raw_context": "",
+                    "raw_context": sv.get("resume", ""),
                 },
-                "module_id": sv.get("module", "posh"),
+                "module_id":   self._chosen_module_id,
+                "scenario_id": self._chosen_scenario_id,
             })
         except requests.HTTPError as exc:
             self.call_from_thread(
@@ -449,7 +532,7 @@ class CubicleAllyApp(App[None]):
 
         # HP + step
         hp = gs.get("player_hp", 100)
-        max_hp = gs.get("starting_hp", 100)
+        max_hp = gs.get("max_hp", 100)
         self.query_one("#hp-bar", Static).update(_hp_markup(hp, max_hp))
         step = gs.get("current_step", 0)
         max_steps = gs.get("max_steps", 6)
@@ -503,18 +586,19 @@ class CubicleAllyApp(App[None]):
         if choices and status == "active":
             labels = ["A", "B", "C"]
             lines = [
-                f"  [yellow bold][{labels[i]}][/yellow bold]  {c['label']}"
+                f"  [yellow bold]\\[{labels[i]}][/yellow bold]  {c['label']}"
                 for i, c in enumerate(choices[:3])
             ]
             lines.append(
-                "  [yellow bold][F][/yellow bold]  [dim]Free-write your own response[/dim]"
+                "  [yellow bold]\\[F][/yellow bold]  [dim]Free-write your own response[/dim]"
             )
             self.query_one("#choices-display", Static).update("\n".join(lines))
             self._enable_input("A / B / C  or  F to free-write  ›  Enter to confirm")
             self._awaiting = True
             self._freewrite = False
             self._lost_mode = False
-            self._set_status("Your move — press [A], [B], [C] or [F]")
+            self._won_mode = False
+            self._set_status("Your move — press \\[A], \\[B], \\[C] or \\[F]")
         else:
             self.query_one("#choices-display", Static).update("")
 
@@ -545,7 +629,19 @@ class CubicleAllyApp(App[None]):
         if not self._awaiting:
             return
 
-        # Game-over state: R = retry, D = debrief
+        # Win state: only D is valid → go to debrief
+        if self._won_mode:
+            key = raw.lower()
+            if key in ("d", "debrief"):
+                self._awaiting = False
+                self._won_mode = False
+                self._disable_input()
+                self._do_debrief()
+            else:
+                self._set_status("[red]Type  D  then Enter[/red]")
+            return
+
+        # Loss state: R = retry, D = debrief
         if self._lost_mode:
             key = raw.lower()
             if key in ("r", "retry"):
@@ -559,7 +655,7 @@ class CubicleAllyApp(App[None]):
                 self._disable_input()
                 self._do_debrief()
             else:
-                self._set_status("[red]Type R (retry) or D (debrief) then Enter[/red]")
+                self._set_status("[red]Type  R  (retry) or  D  (debrief) then Enter[/red]")
             return
 
         # Free-write sub-mode
@@ -578,9 +674,9 @@ class CubicleAllyApp(App[None]):
         elif key == "f":
             self._freewrite = True
             self._enable_input("Type your response and press Enter…")
-            self._set_status("Free-write — type your response then Enter")
+            self._set_status("Free-write mode — type your response then Enter")
         else:
-            self._set_status("[red]Invalid — press A, B, C or F[/red]")
+            self._set_status("[red]Invalid — press  A,  B,  C  or  F[/red]")
 
     def _submit_choice(self, player_choice: str) -> None:
         self._awaiting = False
@@ -604,10 +700,20 @@ class CubicleAllyApp(App[None]):
                 "player_choice": player_choice,
             })
         except requests.HTTPError as exc:
-            self.call_from_thread(
-                self._fatal,
-                f"Turn submit {exc.response.status_code}: {exc.response.text[:200]}",
-            )
+            status_code = exc.response.status_code
+            try:
+                detail = exc.response.json().get("detail", exc.response.text[:200])
+            except Exception:
+                detail = exc.response.text[:200]
+
+            if status_code == 422:
+                # Guardrail rejection — recoverable; re-enable the arena so the
+                # player can try a different response.
+                self.call_from_thread(self._on_turn_rejected, str(detail))
+            else:
+                self.call_from_thread(
+                    self._fatal, f"Turn submit {status_code}: {detail}"
+                )
             return
         except Exception as exc:
             self.call_from_thread(self._fatal, f"Turn error: {exc}")
@@ -620,6 +726,28 @@ class CubicleAllyApp(App[None]):
         )
         self.call_from_thread(self._on_turn_done, gs)
 
+    def _on_turn_rejected(self, reason: str) -> None:
+        """Recover the arena after a guardrail rejection (HTTP 422)."""
+        self._log(f"[red]Guardrail:[/red] {reason}")
+        self._set_status(f"[red]Blocked:[/red] {reason} — try a different response")
+
+        # Restore choices display and re-enable input so the player can retry
+        choices = self._choices
+        if choices:
+            labels = ["A", "B", "C"]
+            lines = [
+                f"  [yellow bold]\\[{labels[i]}][/yellow bold]  {c['label']}"
+                for i, c in enumerate(choices[:3])
+            ]
+            lines.append(
+                "  [yellow bold]\\[F][/yellow bold]  [dim]Free-write your own response[/dim]"
+            )
+            self.query_one("#choices-display", Static).update("\n".join(lines))
+            self._enable_input("A / B / C  or  F to free-write  ›  Enter to confirm")
+
+        self._awaiting = True
+        self._freewrite = False
+
     def _on_turn_done(self, game_state: dict) -> None:
         self._game_state = game_state
         status = game_state.get("status", "active")
@@ -627,23 +755,29 @@ class CubicleAllyApp(App[None]):
 
         if status == "won":
             self.query_one("#chat-log", RichLog).write(
-                "\n[bold green]━━  SCENARIO COMPLETE  ━━[/bold green]\n"
+                "\n[bold green]━━  YOU WON  ━━[/bold green]\n"
             )
-            self._set_status("Complete! Generating debrief…")
-            self._do_debrief()
+            self.query_one("#choices-display", Static).update(
+                "  [yellow bold]\\[D][/yellow bold]  View debrief"
+            )
+            self._enable_input("D (debrief)  ›  Enter")
+            self._awaiting = True
+            self._won_mode = True
+            self._set_status("[green]Scenario complete![/green]  \\[D] view debrief  |  \\[N] new session")
+            self._log("[green]Scenario won.[/green]")
 
         elif status == "lost":
             self.query_one("#chat-log", RichLog).write(
                 "\n[bold red]━━  YOU RAN OUT OF HP  ━━[/bold red]\n"
             )
             self.query_one("#choices-display", Static).update(
-                "  [yellow bold][R][/yellow bold]  Retry the same scenario\n"
-                "  [yellow bold][D][/yellow bold]  View debrief"
+                "  [yellow bold]\\[R][/yellow bold]  Retry the same scenario\n"
+                "  [yellow bold]\\[D][/yellow bold]  View debrief"
             )
             self._enable_input("R (retry)  or  D (debrief)  ›  Enter")
             self._awaiting = True
             self._lost_mode = True
-            self._set_status("[red]Game over![/red]  R = retry  |  D = debrief")
+            self._set_status("[red]Game over![/red]  \\[R] retry  |  \\[D] debrief  |  \\[N] new session")
             self._log("[red]Game lost.[/red]")
 
     # ── Debrief ───────────────────────────────────────────────────────────────
@@ -684,8 +818,10 @@ class CubicleAllyApp(App[None]):
                 f"[red]{delta}[/red]" if delta < 0 else f"[green]+{delta}[/green]"
             )
             log.write(f"\n[bold]Step {t.get('step', '?')}[/bold]  HP {delta_str}")
-            log.write(f"  You said:  {t.get('player_choice', '')}")
-            log.write(f"  Insight:   {t.get('compliance_insight', '')}")
+            log.write(f"  You said:      {t.get('player_choice', '')}")
+            if t.get("what_happened"):
+                log.write(f"  What happened: {t['what_happened']}")
+            log.write(f"  Insight:       {t.get('compliance_insight', '')}")
 
         concepts = debrief.get("key_concepts", [])
         if concepts:
@@ -699,8 +835,8 @@ class CubicleAllyApp(App[None]):
             for m in followup:
                 log.write(f"  → {m}")
 
-        log.write("\n[dim]Press Q to quit or start a new session.[/dim]")
-        self._set_status("Debrief complete — press Q to quit")
+        log.write("\n[dim]Press \\[N] to train another module  |  \\[Q] to quit[/dim]")
+        self._set_status("Debrief complete — \\[N] new session  |  \\[Q] quit")
         self._log("[green]Debrief rendered.[/green]")
 
     # ── Retry ─────────────────────────────────────────────────────────────────
@@ -732,6 +868,51 @@ class CubicleAllyApp(App[None]):
         self.query_one("#choices-display", Static).update("")
         self._render_current_turn()
         self._log("[yellow]Session reset.[/yellow]")
+
+    # ── New session (Train Another Module) ────────────────────────────────────
+
+    def action_new_session(self) -> None:
+        """Reset all state and return to the setup screen."""
+        # Clear game state
+        self._session_id = None
+        self._game_state = None
+        self._choices = []
+
+        # Clear scenario selection
+        self._scenario_list = []
+        self._chosen_module_id = ""
+        self._chosen_scenario_id = ""
+        self._picking_scenario = False
+
+        # Clear input mode flags
+        self._awaiting = False
+        self._freewrite = False
+        self._lost_mode = False
+        self._won_mode = False
+
+        # Clear setup
+        self._setup_idx = 0
+        self._setup_vals = {}
+
+        # Clear UI
+        self.query_one("#chat-log", RichLog).clear()
+        self.query_one("#debrief-log", RichLog).clear()
+        self.query_one("#choices-display", Static).update("")
+        self.query_one("#situation-text", Static).update("")
+        self.query_one("#sprite-art", Static).update("")
+        self.query_one("#hp-bar", Static).update("")
+        self.query_one("#step-info", Static).update("")
+        self.query_one("#session-info", Static).update("")
+
+        inp = self.query_one("#choice-input", Input)
+        inp.disabled = True
+        inp.value = ""
+
+        # Navigate back to setup
+        self.query_one("#switcher", ContentSwitcher).current = "setup-view"
+        self._set_status("…")
+        self._log("[cyan]New session started.[/cyan]")
+        self._advance_setup()
 
     # ── Utilities ─────────────────────────────────────────────────────────────
 
