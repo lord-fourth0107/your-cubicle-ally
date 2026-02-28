@@ -105,8 +105,17 @@ class SessionManager:
         - Persist to SQLite
         """
         state = self.get(session_id)
+        # Gameplay rule:
+        # - Wrong answers reduce HP.
+        # - Correct answers do not heal HP.
+        # - HP is capped at 100.
+        effective_delta = min(0, turn.hp_delta)
+        turn.hp_delta = effective_delta
+        if turn.evaluation is not None:
+            turn.evaluation.hp_delta = effective_delta
+
         state.history.append(turn)
-        state.player_hp = max(0, state.player_hp + turn.hp_delta)
+        state.player_hp = max(0, min(100, state.player_hp + effective_delta))
         state.current_step += 1
 
         if state.player_hp <= 0 or (turn.evaluation and turn.evaluation.is_critical_failure):
