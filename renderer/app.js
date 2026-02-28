@@ -832,9 +832,20 @@ function submitChoice(choiceText) {
       console.error("Backend error:", err);
       removeDialogueEntry(pendingPlayerMessageId);
       pendingPlayerMessageId = null;
+      isSubmittingTurn = false;
       hideOverlay("thinking");
-      alert("Turn submission failed: " + (err.message || "Server error"));
+      const backendReason = err?.detail || err?.message || "Server error";
+      const submitted = err?.submittedInput || choiceText;
+      if (err?.status === 422) {
+        alert(
+          `Invalid input: "${submitted}"\nReason: ${backendReason}`
+        );
+      } else {
+        alert("Turn submission failed: " + backendReason);
+      }
       renderArena();
+      arenaElements.freeWriteInput.value = submitted;
+      arenaElements.freeWriteInput.focus();
     });
 }
 
@@ -844,7 +855,20 @@ async function submitTurnToBackend(playerChoice) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ session_id: gameState.session_id, player_choice: playerChoice }),
   });
-  if (!res.ok) throw new Error(res.statusText);
+  if (!res.ok) {
+    let detail = res.statusText;
+    try {
+      const payload = await res.json();
+      detail = payload?.detail || detail;
+    } catch (_) {
+      // Non-JSON error response; keep status text.
+    }
+    const err = new Error(detail || "Request failed");
+    err.status = res.status;
+    err.detail = detail;
+    err.submittedInput = playerChoice;
+    throw err;
+  }
   return res.json();
 }
 

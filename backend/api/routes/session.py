@@ -13,6 +13,7 @@ Depends on: core/session_manager, utilities/session_initializer, agents/coach_ag
 """
 
 from fastapi import APIRouter, Depends, HTTPException
+import re
 
 from core.game_state import PlayerProfile, SessionStatus
 from api.deps import (
@@ -44,6 +45,72 @@ def _resolve_scenario_id(
     return scenarios[0]
 
 
+_ROLE_HINT_WORDS = {
+    "engineer", "developer", "manager", "analyst", "designer", "lead", "specialist",
+    "consultant", "architect", "coordinator", "director", "administrator", "officer",
+    "associate", "intern", "scientist", "owner", "technician", "accountant", "recruiter",
+    "marketer", "sales", "product", "security", "hr", "finance", "operations",
+    "ceo", "cto", "cfo", "coo", "cio", "cmo", "ciso", "chro", "president",
+}
+
+_JD_HINT_WORDS = {
+    "responsibilities", "requirements", "experience", "skills", "qualifications", "role",
+    "team", "you will", "must", "should", "years", "develop", "design", "manage", "build",
+    "support", "stakeholders", "collaborate", "communication",
+}
+
+
+def _is_gibberish_text(text: str) -> bool:
+    t = text.strip().lower()
+    if not t:
+        return True
+    if any(bad in t for bad in ("lorem ipsum", "asdf", "qwerty", "123456", "!!@@")):
+        return True
+    letters = sum(ch.isalpha() for ch in t)
+    if letters / max(1, len(t)) < 0.45:
+        return True
+    condensed = re.sub(r"\s+", "", t)
+    if len(condensed) >= 8:
+        unique_ratio = len(set(condensed)) / len(condensed)
+        if unique_ratio < 0.18:
+            return True
+    return False
+
+
+def _looks_like_role_title(text: str) -> bool:
+    t = re.sub(r"\s+", " ", text.strip())
+    if not (2 <= len(t) <= 80):
+        return False
+    if any(ch.isdigit() for ch in t):
+        return False
+    words = [w.lower() for w in re.findall(r"[A-Za-z]+", t)]
+    if not (1 <= len(words) <= 8):
+        return False
+    if len(words) == 1:
+        return words[0] in _ROLE_HINT_WORDS
+    return any(w in _ROLE_HINT_WORDS for w in words)
+
+
+def _looks_like_job_description(text: str) -> bool:
+    t = text.strip().lower()
+    if len(t) < 40:
+        return False
+    tokens = re.findall(r"[a-z]+", t)
+    if len(tokens) < 8:
+        return False
+    hits = sum(1 for hint in _JD_HINT_WORDS if hint in t)
+    return hits >= 2
+
+
+def _is_valid_job_input(text: str) -> bool:
+    t = (text or "").strip()
+    if not t:
+        return False
+    if _is_gibberish_text(t):
+        return False
+    return _looks_like_role_title(t) or _looks_like_job_description(t)
+
+
 @router.post("/start")
 async def start_session(
     body: dict,
@@ -65,6 +132,15 @@ async def start_session(
         domain=raw_profile.get("domain", "General"),
         raw_context=raw_profile.get("raw_context", ""),
     )
+
+    if not _is_valid_job_input(player_profile.raw_context):
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "Invalid input. Please provide a valid job role title or a realistic "
+                "job description in the job description field."
+            ),
+        )
 
     module_id = body.get("module_id", "posh")
     scenario_id = _resolve_scenario_id(

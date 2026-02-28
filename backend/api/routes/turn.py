@@ -57,6 +57,9 @@ async def submit_turn(
             player_choice=player_choice,
         )
     except GuardrailViolation as exc:
-        raise HTTPException(status_code=422, detail=exc.message)
+        raise HTTPException(
+            status_code=422,
+            detail=exc.message or "Invalid input. Please enter an appropriate response for this scenario.",
+        )
 
     return {"game_state": updated_state}

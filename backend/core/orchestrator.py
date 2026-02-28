@@ -28,7 +28,7 @@ from core.session_manager import SessionManager
 from agents.evaluator_agent import EvaluatorAgent
 from agents.scenario_agent import ScenarioAgent, PlayerDrift
 from agents.actor_agent import ActorAgent
-from agents.guardrail_agent import GuardrailAgent
+from agents.guardrail_agent import GuardrailAgent, GuardrailViolation
 from utilities.prompt_builder import PromptBuilder
 
 
@@ -154,6 +154,8 @@ class Orchestrator:
         )
         # Clamp evaluator output to the scenario's configured HP delta bounds
         evaluation = self.guardrail.fix_evaluator_output(evaluation, state.scoring)
+        if evaluation.is_critical_failure:
+            raise GuardrailViolation("Invalid response. Do better, please.")
 
         # Compute drift from the full history (including the just-evaluated turn)
         # so the Scenario Agent can steer the narrative back if the player is struggling.

@@ -118,7 +118,7 @@ class SessionManager:
         state.player_hp = max(0, min(100, state.player_hp + effective_delta))
         state.current_step += 1
 
-        if state.player_hp <= 0 or (turn.evaluation and turn.evaluation.is_critical_failure):
+        if state.player_hp <= 0:
             state.status = SessionStatus.LOST
         elif state.current_step >= state.max_steps or turn.resolved_early:
             state.status = SessionStatus.WON
