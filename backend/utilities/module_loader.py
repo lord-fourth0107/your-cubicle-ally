@@ -16,7 +16,7 @@ import yaml
 from functools import lru_cache
 from pathlib import Path
 from pydantic import BaseModel, Field
-from ..core.game_state import ScoringConfig
+from core.game_state import ScoringConfig
 
 
 MODULES_DIR = Path(__file__).parent.parent / "modules"
