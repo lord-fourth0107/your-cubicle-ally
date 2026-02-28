@@ -127,6 +127,10 @@ let useMockBackend = false; // Use real backend; falls back to mock if backend u
 let modulesData = []; // Fetched from GET /modules
 let isSubmittingTurn = false;
 let ttsEnabled = localStorage.getItem("cubicle-ally-tts") !== "false";
+let dialogueHistory = [];
+let dialogueCounter = 0;
+let pendingPlayerMessageId = null;
+let lastPlayedAudioSignature = "";
 
 // ============ DOM Elements ============
 const screens = {
@@ -293,6 +297,10 @@ async function startScenario() {
     gameState = mapBackendGameState(data.game_state);
     actors = actorsFromGameState(data.game_state);
     turnHistory = [];
+    dialogueHistory = [];
+    dialogueCounter = 0;
+    pendingPlayerMessageId = null;
+    lastPlayedAudioSignature = "";
     showWorldSetup();
   } catch (err) {
     console.error("Backend error:", err);
@@ -431,10 +439,15 @@ function resetGameState() {
     current_actor_reactions: [],
   };
   turnHistory = [];
+  dialogueHistory = [];
+  dialogueCounter = 0;
+  pendingPlayerMessageId = null;
+  lastPlayedAudioSignature = "";
 }
 
 // ============ Arena ============
 function enterArena() {
+  seedInitialDialogueThread();
   showScreen("arena");
   updateTTSButtonState();
   renderWorldScene();
@@ -546,22 +559,14 @@ function renderArena() {
 
   // Actor reactions from last turn (interactive dialogue bubbles)
   const reactionsToPlay = [...gameState.current_actor_reactions];
-  arenaElements.actorReactions.innerHTML = gameState.current_actor_reactions
-    .map(
-      (r) => {
-        const avatarUrl = getActorAvatarUrl(r.actor_id, worldData.actor_sprites?.[r.actor_id]);
-        return `
-    <div class="reaction-bubble reaction-speaks" data-actor-id="${r.actor_id}">
-      <img class="reaction-avatar-img" src="${avatarUrl}" alt="" />
-      <span class="reaction-dialogue"><strong>${escapeHtml(getActorName(r.actor_id))}:</strong> ${escapeHtml(r.dialogue)}</span>
-    </div>
-  `;
-      }
-    )
-    .join("");
+  renderDialogueThread();
 
   // Play dialogue audio (live voice) if TTS enabled
-  if (ttsEnabled && reactionsToPlay.length > 0) {
+  const audioSignature = `${gameState.current_step}:${reactionsToPlay
+    .map((r) => `${r.actor_id}:${r.dialogue}`)
+    .join("|")}`;
+  if (ttsEnabled && reactionsToPlay.length > 0 && audioSignature !== lastPlayedAudioSignature) {
+    lastPlayedAudioSignature = audioSignature;
     playDialogueAudio(reactionsToPlay);
   }
 
@@ -604,6 +609,95 @@ function renderArena() {
 function getActorName(actorId) {
   const a = actors.find((x) => x.actor_id === actorId);
   return a ? a.name || actorId : actorId;
+}
+
+function pushDialogueEntry({ speakerType, text, actorId = "", pending = false }) {
+  const entry = {
+    id: `d-${dialogueCounter++}`,
+    speakerType,
+    actorId,
+    text,
+    pending,
+  };
+  dialogueHistory.push(entry);
+  return entry.id;
+}
+
+function markDialogueEntryResolved(entryId) {
+  if (!entryId) return;
+  const entry = dialogueHistory.find((d) => d.id === entryId);
+  if (entry) entry.pending = false;
+}
+
+function removeDialogueEntry(entryId) {
+  if (!entryId) return;
+  dialogueHistory = dialogueHistory.filter((d) => d.id !== entryId);
+}
+
+function appendActorDialogues(reactions) {
+  for (const r of reactions || []) {
+    if (!r?.dialogue?.trim()) continue;
+    pushDialogueEntry({
+      speakerType: "actor",
+      actorId: r.actor_id,
+      text: r.dialogue.trim(),
+      pending: false,
+    });
+  }
+}
+
+function renderDialogueThread() {
+  const html = dialogueHistory
+    .map((d) => {
+      if (d.speakerType === "narrator") {
+        return `
+          <div class="dialogue-row narrator">
+            <div class="dialogue-bubble">${escapeHtml(d.text)}</div>
+          </div>
+        `;
+      }
+
+      if (d.speakerType === "player") {
+        return `
+          <div class="dialogue-row player${d.pending ? " pending" : ""}">
+            <div class="dialogue-meta">You</div>
+            <div class="dialogue-bubble">${escapeHtml(d.text)}</div>
+          </div>
+        `;
+      }
+
+      const actorName = getActorName(d.actorId);
+      const avatarUrl = getActorAvatarUrl(d.actorId, worldData.actor_sprites?.[d.actorId]);
+      return `
+        <div class="dialogue-row actor" data-actor-id="${escapeHtml(d.actorId || "")}">
+          <img class="dialogue-avatar" src="${avatarUrl}" alt="${escapeHtml(actorName)}" />
+          <div class="dialogue-content">
+            <div class="dialogue-meta">${escapeHtml(actorName)}</div>
+            <div class="dialogue-bubble">${escapeHtml(d.text)}</div>
+          </div>
+        </div>
+      `;
+    })
+    .join("");
+
+  arenaElements.actorReactions.innerHTML =
+    html || '<div class="dialogue-placeholder">Dialogue will appear here as the scene unfolds.</div>';
+  arenaElements.actorReactions.scrollTop = arenaElements.actorReactions.scrollHeight;
+}
+
+function seedInitialDialogueThread() {
+  if (dialogueHistory.length > 0) return;
+  const openingReactions = gameState.current_actor_reactions || [];
+  if (openingReactions.length > 0) {
+    appendActorDialogues(openingReactions);
+    return;
+  }
+  if (gameState.current_situation?.trim()) {
+    pushDialogueEntry({
+      speakerType: "narrator",
+      text: gameState.current_situation.trim(),
+    });
+  }
 }
 
 // ============ TTS / Live Voice Dialogue ============
@@ -681,6 +775,12 @@ function escapeHtml(text) {
 function submitChoice(choiceText) {
   if (!choiceText || isSubmittingTurn) return;
   isSubmittingTurn = true;
+  pendingPlayerMessageId = pushDialogueEntry({
+    speakerType: "player",
+    text: choiceText,
+    pending: true,
+  });
+  renderDialogueThread();
 
   arenaElements.choiceCards.querySelectorAll("button").forEach((b) => (b.disabled = true));
   arenaElements.freeWriteInput.disabled = true;
@@ -692,6 +792,8 @@ function submitChoice(choiceText) {
     .then((state) => applyGameState(state))
     .catch((err) => {
       console.error("Backend error:", err);
+      removeDialogueEntry(pendingPlayerMessageId);
+      pendingPlayerMessageId = null;
       hideOverlay("thinking");
       alert("Turn submission failed: " + (err.message || "Server error"));
       renderArena();
@@ -712,6 +814,9 @@ function applyGameState(data) {
   hideOverlay("thinking");
   const g = data.game_state || data;
   gameState = mapBackendGameState(g);
+  markDialogueEntryResolved(pendingPlayerMessageId);
+  pendingPlayerMessageId = null;
+  appendActorDialogues(gameState.current_actor_reactions);
   isSubmittingTurn = false;
   if (gameState.status === "lost") showOverlay("loss");
   else if (gameState.status === "won") showOverlay("win");
@@ -732,6 +837,9 @@ function processMockTurn(playerChoice) {
   gameState.current_situation = nextTurn.situation;
   gameState.current_choices = nextTurn.choices;
   gameState.current_actor_reactions = nextTurn.actor_reactions || [];
+  markDialogueEntryResolved(pendingPlayerMessageId);
+  pendingPlayerMessageId = null;
+  appendActorDialogues(gameState.current_actor_reactions);
 
   turnHistory.push({
     step: stepIndex + 1,
@@ -824,6 +932,10 @@ document.getElementById("retry-btn").addEventListener("click", async () => {
       if (res.ok) {
         const g = await res.json();
         gameState = mapBackendGameState(g);
+        dialogueHistory = [];
+        dialogueCounter = 0;
+        pendingPlayerMessageId = null;
+        lastPlayedAudioSignature = "";
         hideAllOverlays();
         enterArena();
         return;
