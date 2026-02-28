@@ -196,13 +196,14 @@ function spriteRoleFromActor(actor) {
   return first || "Colleague";
 }
 
-/** Convert backend ActorInstance to display format { actor_id, name, role } for world gen + arena. */
+/** Convert backend ActorInstance to display format { actor_id, name, role, persona } for world gen + arena + TTS. */
 function actorsFromGameState(gameState) {
   if (!gameState?.actors?.length) return [...MOCK_ACTORS];
   return gameState.actors.map((a) => ({
     actor_id: a.actor_id,
     name: (a.actor_id || "").charAt(0).toUpperCase() + (a.actor_id || "").slice(1),
     role: spriteRoleFromActor(a),
+    persona: a.persona || "",
   }));
 }
 
@@ -609,11 +610,16 @@ function getActorName(actorId) {
 async function playDialogueAudio(reactions) {
   for (const r of reactions) {
     if (!ttsEnabled || !r.dialogue?.trim()) continue;
+    const actor = actors.find((x) => x.actor_id === r.actor_id);
     try {
       const res = await fetch(`${BACKEND_URL}/tts/speech/base64`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: r.dialogue, actor_id: r.actor_id }),
+        body: JSON.stringify({
+          text: r.dialogue,
+          actor_id: r.actor_id,
+          persona: actor?.persona || undefined,
+        }),
       });
       if (!res.ok) {
         await speakWithSystemVoice(r.dialogue, r.actor_id);

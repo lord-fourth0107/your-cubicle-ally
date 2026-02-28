@@ -18,15 +18,16 @@ router = APIRouter()
 class TTSRequest(BaseModel):
     text: str
     actor_id: str | None = None
+    persona: str | None = None  # From scenario YAML; used for gender-appropriate voice
 
 
 @router.post("/speech")
 async def tts_speech(body: TTSRequest):
     """
     Generate speech from text. Returns audio (WAV) as binary or base64.
-    actor_id maps to distinct character voices.
+    Uses actor_id + persona to pick gender-appropriate Gemini TTS voice.
     """
-    result = generate_speech(body.text.strip(), body.actor_id)
+    result = generate_speech(body.text.strip(), body.actor_id, body.persona)
     if result is None:
         return Response(
             content=b"",
@@ -48,7 +49,7 @@ async def tts_speech_base64(body: TTSRequest):
     """
     Generate speech and return as base64 data URL (for easier frontend use).
     """
-    result = generate_speech(body.text.strip(), body.actor_id)
+    result = generate_speech(body.text.strip(), body.actor_id, body.persona)
     if result is None:
         return {"audio": None, "mime_type": None}
     audio_bytes, mime_type = result
