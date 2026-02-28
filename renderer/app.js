@@ -131,6 +131,8 @@ let dialogueHistory = [];
 let dialogueCounter = 0;
 let pendingPlayerMessageId = null;
 let lastPlayedAudioSignature = "";
+let activeSpeakerActorId = null;
+let activeSpeakerMessageId = null;
 
 // ============ DOM Elements ============
 const screens = {
@@ -487,13 +489,12 @@ function renderWorldScene() {
     envEl.classList.remove("env-animated", "env-kenburns");
   }
 
-  const speakingIds = new Set(gameState.current_actor_reactions.map((r) => r.actor_id));
   const animFrames = worldData.actor_animations || {};
 
   spritesEl.innerHTML = actors
     .map((a) => {
       const frames = animFrames[a.actor_id];
-      const speaking = speakingIds.has(a.actor_id) ? " speaking" : "";
+      const speaking = activeSpeakerActorId === a.actor_id ? " speaking" : "";
       const speechIndicator = speaking ? '<span class="sprite-speaking-badge"></span>' : "";
 
       if (frames && frames.length > 1) {
@@ -523,12 +524,10 @@ function renderArena() {
   arenaElements.moduleLabel.textContent = selectedModuleLabel;
   arenaElements.stepCounter.textContent = `Step ${gameState.current_step + 1} of ${gameState.max_steps}`;
 
-  const speakingIds = new Set(gameState.current_actor_reactions.map((r) => r.actor_id));
-
   arenaElements.actorCards.innerHTML = actors
     .map((a) => {
       const avatarSrc = getActorAvatarUrl(a.actor_id, worldData.actor_sprites?.[a.actor_id]);
-      const speaking = speakingIds.has(a.actor_id);
+      const speaking = activeSpeakerActorId === a.actor_id;
       const speakingBadge = speaking ? '<span class="actor-speaking-badge"></span>' : "";
       return `
     <div class="actor-card${speaking ? " speaking" : ""}" data-actor-id="${a.actor_id}">
@@ -570,10 +569,7 @@ function renderArena() {
     playDialogueAudio(reactionsToPlay);
   }
 
-  // Highlight speaking actors in sidebar
-  arenaElements.actorCards.querySelectorAll(".actor-card").forEach((card) => {
-    card.classList.toggle("speaking", speakingIds.has(card.dataset.actorId));
-  });
+  updateSpeakingHighlights();
 
   // Choices
   arenaElements.choiceCards.innerHTML = gameState.current_choices
@@ -668,8 +664,9 @@ function renderDialogueThread() {
 
       const actorName = getActorName(d.actorId);
       const avatarUrl = getActorAvatarUrl(d.actorId, worldData.actor_sprites?.[d.actorId]);
+      const speakingClass = activeSpeakerMessageId === d.id ? " speaking" : "";
       return `
-        <div class="dialogue-row actor" data-actor-id="${escapeHtml(d.actorId || "")}">
+        <div class="dialogue-row actor${speakingClass}" data-actor-id="${escapeHtml(d.actorId || "")}" data-dialogue-id="${escapeHtml(d.id)}">
           <img class="dialogue-avatar" src="${avatarUrl}" alt="${escapeHtml(actorName)}" />
           <div class="dialogue-content">
             <div class="dialogue-meta">${escapeHtml(actorName)}</div>
@@ -683,6 +680,7 @@ function renderDialogueThread() {
   arenaElements.actorReactions.innerHTML =
     html || '<div class="dialogue-placeholder">Dialogue will appear here as the scene unfolds.</div>';
   arenaElements.actorReactions.scrollTop = arenaElements.actorReactions.scrollHeight;
+  updateSpeakingHighlights();
 }
 
 function seedInitialDialogueThread() {
@@ -704,6 +702,8 @@ function seedInitialDialogueThread() {
 async function playDialogueAudio(reactions) {
   for (const r of reactions) {
     if (!ttsEnabled || !r.dialogue?.trim()) continue;
+    const messageId = findLatestDialogueEntryId(r.actor_id, r.dialogue);
+    setActiveSpeaker(r.actor_id, messageId);
     const actor = actors.find((x) => x.actor_id === r.actor_id);
     try {
       const res = await fetch(`${BACKEND_URL}/tts/speech/base64`, {
@@ -733,8 +733,46 @@ async function playDialogueAudio(reactions) {
     } catch (err) {
       console.warn("TTS playback failed:", err);
       await speakWithSystemVoice(r.dialogue, r.actor_id);
+    } finally {
+      setActiveSpeaker(null, null);
     }
   }
+}
+
+function findLatestDialogueEntryId(actorId, dialogueText) {
+  const target = (dialogueText || "").trim();
+  if (!actorId || !target) return null;
+  for (let i = dialogueHistory.length - 1; i >= 0; i -= 1) {
+    const d = dialogueHistory[i];
+    if (d.speakerType === "actor" && d.actorId === actorId && (d.text || "").trim() === target) {
+      return d.id;
+    }
+  }
+  return null;
+}
+
+function setActiveSpeaker(actorId, messageId = null) {
+  activeSpeakerActorId = actorId || null;
+  activeSpeakerMessageId = messageId || null;
+  updateSpeakingHighlights();
+}
+
+function updateSpeakingHighlights() {
+  const activeId = activeSpeakerActorId;
+
+  document.querySelectorAll(".actor-card[data-actor-id]").forEach((card) => {
+    card.classList.toggle("speaking", !!activeId && card.dataset.actorId === activeId);
+  });
+
+  const activeMessageId = activeSpeakerMessageId;
+  document.querySelectorAll(".dialogue-row.actor[data-dialogue-id]").forEach((row) => {
+    row.classList.toggle("speaking", !!activeMessageId && row.dataset.dialogueId === activeMessageId);
+  });
+
+  document.querySelectorAll(".world-sprite-wrapper[data-actor-id]").forEach((sprite) => {
+    const isSpeaking = !!activeId && sprite.dataset.actorId === activeId;
+    sprite.classList.toggle("speaking", isSpeaking);
+  });
 }
 
 function pickSystemVoice(actorId = "") {

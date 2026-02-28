@@ -472,15 +472,12 @@ body {
 }
 
 .world-sprite-wrapper.speaking .world-sprite {
-  transform: scale(1.08);
+  transform: translateY(-4px) scale(1.08);
+  box-shadow: 0 0 0 6px rgba(39, 174, 96, 0.24), 0 8px 18px rgba(39, 174, 96, 0.35);
 }
 
 .world-sprite-wrapper.speaking {
-  animation: spriteSpeakPulse 1.2s ease-in-out infinite;
-}
-@keyframes spriteSpeakPulse {
-  0%, 100% { box-shadow: 0 0 0 3px var(--coral); }
-  50% { box-shadow: 0 0 0 6px rgba(255, 107, 107, 0.5); }
+  animation: speakerBounce 0.9s ease-in-out infinite;
 }
 .sprite-speaking-badge {
   position: absolute;
@@ -621,6 +618,17 @@ body {
   opacity: 0.75;
 }
 
+.dialogue-row.actor.speaking .dialogue-bubble {
+  border-color: rgba(39, 174, 96, 0.45);
+  box-shadow: 0 0 0 6px rgba(39, 174, 96, 0.15), 0 8px 18px rgba(39, 174, 96, 0.22);
+  animation: speakerBounce 0.9s ease-in-out infinite;
+}
+
+.dialogue-row.actor.speaking .dialogue-avatar {
+  border-color: rgba(39, 174, 96, 0.8);
+  box-shadow: 0 0 0 4px rgba(39, 174, 96, 0.22);
+}
+
 .dialogue-row.narrator {
   justify-content: center;
 }
@@ -646,6 +654,15 @@ body {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes speakerBounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
   }
 }
 
@@ -683,12 +700,9 @@ body {
   background: #f0f0f5;
 }
 .actor-card.speaking {
-  background: rgba(255, 107, 107, 0.12);
-  animation: actorSpeakGlow 1.5s ease-in-out infinite;
-}
-@keyframes actorSpeakGlow {
-  0%, 100% { box-shadow: inset 0 0 0 0 rgba(255, 107, 107, 0); }
-  50% { box-shadow: inset 0 0 0 2px rgba(255, 107, 107, 0.3); }
+  background: rgba(39, 174, 96, 0.16);
+  animation: speakerBounce 0.9s ease-in-out infinite;
+  box-shadow: 0 0 0 6px rgba(39, 174, 96, 0.2);
 }
 .actor-speaking-badge {
   position: absolute;
@@ -696,7 +710,7 @@ body {
   right: -4px;
   width: 14px;
   height: 14px;
-  background: var(--coral);
+  background: var(--mint-dark);
   border-radius: 50%;
   border: 2px solid white;
   animation: speakingDot 0.8s ease-in-out infinite;
