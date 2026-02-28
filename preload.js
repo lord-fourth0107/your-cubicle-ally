@@ -1,5 +1,7 @@
-const { contextBridge } = require('electron');
+const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
-  // Add any IPC methods here when you need backend communication
+  getWorldCache: (scenarioId) => ipcRenderer.invoke('world-cache:get', scenarioId),
+  setWorldCache: (scenarioId, worldData) =>
+    ipcRenderer.invoke('world-cache:set', { scenarioId, worldData }),
 });

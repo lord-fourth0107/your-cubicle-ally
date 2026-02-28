@@ -357,6 +357,9 @@ function updateWorldStep(stepId, status, text) {
 }
 
 async function generateWorld() {
+  const cached = await getCachedWorldData(selectedScenarioId);
+  if (cached) return cached;
+
   const res = await fetch(`${BACKEND_URL}/world/generate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -371,7 +374,49 @@ async function generateWorld() {
     }),
   });
   if (!res.ok) throw new Error(res.statusText);
-  return res.json();
+  const data = await res.json();
+  if (hasWorldAssets(data)) {
+    await setCachedWorldData(selectedScenarioId, data);
+  }
+  return data;
+}
+
+function hasWorldAssets(data) {
+  if (!data) return false;
+  if (data.environment_image) return true;
+  if (Array.isArray(data.environment_frames) && data.environment_frames.some(Boolean)) return true;
+  if (data.actor_sprites && Object.values(data.actor_sprites).some(Boolean)) return true;
+  if (
+    data.actor_animations &&
+    Object.values(data.actor_animations).some((frames) => Array.isArray(frames) && frames.some(Boolean))
+  ) {
+    return true;
+  }
+  return false;
+}
+
+async function getCachedWorldData(scenarioId) {
+  if (!scenarioId) return null;
+  const api = window.electronAPI;
+  if (!api?.getWorldCache) return null;
+  try {
+    const cached = await api.getWorldCache(scenarioId);
+    return hasWorldAssets(cached) ? cached : null;
+  } catch (err) {
+    console.warn("Failed to read world cache:", err);
+    return null;
+  }
+}
+
+async function setCachedWorldData(scenarioId, worldData) {
+  if (!scenarioId || !hasWorldAssets(worldData)) return;
+  const api = window.electronAPI;
+  if (!api?.setWorldCache) return;
+  try {
+    await api.setWorldCache(scenarioId, worldData);
+  } catch (err) {
+    console.warn("Failed to write world cache:", err);
+  }
 }
 
 function resetGameState() {
