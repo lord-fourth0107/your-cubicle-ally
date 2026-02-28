@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' http://localhost:8000">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' http://localhost:8000 https://api.dicebear.com; img-src 'self' data: https://api.dicebear.com blob:">
   <title>Your Cubicle Ally</title>
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -87,53 +87,35 @@
     </header>
 
     <div class="arena-layout">
-      <aside class="actor-panel">
-        <h3 class="panel-title">Characters</h3>
-        <div id="actor-cards" class="actor-cards">
-          <!-- Populated by JS -->
+      <!-- Scene + narrative flow - immersive single column -->
+      <div class="arena-scene-wrap">
+        <section class="world-scene" id="world-scene">
+          <div class="world-environment" id="world-environment"></div>
+          <div class="world-sprites" id="world-sprites"></div>
+          <div class="arena-hp-mini" title="Your impact meter">
+            <div class="hp-bar-mini"><div class="hp-bar-fill" id="hp-bar-fill"></div></div>
+            <span class="hp-text" id="hp-text">100</span>
+          </div>
+        </section>
+
+        <div class="narrative-flow">
+          <p class="situation-text" id="situation-text">Loading...</p>
+          <div class="actor-reactions" id="actor-reactions"></div>
         </div>
+      </div>
+
+      <aside class="arena-sidebar">
+        <div id="actor-cards" class="actor-cards"></div>
       </aside>
 
-      <!-- Generative World: Simulated environment with sprites -->
-      <section class="world-scene" id="world-scene">
-        <div class="world-environment" id="world-environment">
-          <!-- Environment image or gradient placeholder -->
+      <div class="arena-choices-wrap">
+        <p class="choices-prompt">What would you do?</p>
+        <div class="choice-cards" id="choice-cards"></div>
+        <div class="free-write-row">
+          <input type="text" id="free-write-input" placeholder="Or type your own response..." />
+          <button id="submit-free-write-btn" class="submit-custom-btn">Send</button>
         </div>
-        <div class="world-sprites" id="world-sprites">
-          <!-- Actor sprites positioned in scene -->
-        </div>
-      </section>
-
-      <main class="arena-main">
-        <div class="hp-bar-container">
-          <div class="hp-bar-wrapper">
-            <div class="hp-bar-fill" id="hp-bar-fill"></div>
-          </div>
-          <span class="hp-text" id="hp-text">100 / 100</span>
-        </div>
-
-        <section class="situation-panel">
-          <h3 class="panel-title">What&apos;s happening</h3>
-          <p class="situation-text" id="situation-text">
-            Loading...
-          </p>
-        </section>
-
-        <section class="actor-reactions" id="actor-reactions">
-          <!-- Character dialogue appears here as the scene unfolds -->
-        </section>
-
-        <section class="choices-panel">
-          <h3 class="panel-title">What do you do?</h3>
-          <div class="choice-cards" id="choice-cards">
-            <!-- Populated by JS -->
-          </div>
-          <div class="free-write-row">
-            <input type="text" id="free-write-input" placeholder="Or type your own response in your words..." />
-            <button id="submit-free-write-btn" class="secondary-btn">Submit</button>
-          </div>
-        </section>
-      </main>
+      </div>
     </div>
 
     <!-- Loss Overlay (shown when HP hits 0) -->

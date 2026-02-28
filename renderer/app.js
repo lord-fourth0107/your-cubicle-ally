@@ -389,6 +389,12 @@ function enterArena() {
   hideAllOverlays();
 }
 
+/** Fallback: illustrated avatar when AI sprite unavailable. Uses DiceBear. */
+function getActorAvatarUrl(actorId, spriteFromBackend) {
+  if (spriteFromBackend) return spriteFromBackend;
+  return `https://api.dicebear.com/7.x/lorelei/svg?seed=${encodeURIComponent(actorId)}`;
+}
+
 function renderWorldScene() {
   const envEl = document.getElementById("world-environment");
   const spritesEl = document.getElementById("world-sprites");
@@ -403,13 +409,13 @@ function renderWorldScene() {
   const speakingIds = new Set(gameState.current_actor_reactions.map((r) => r.actor_id));
   spritesEl.innerHTML = actors
     .map((a) => {
-      const src = worldData.actor_sprites?.[a.actor_id];
-      const initial = (a.name || "?")[0];
+      const src = getActorAvatarUrl(a.actor_id, worldData.actor_sprites?.[a.actor_id]);
       const speaking = speakingIds.has(a.actor_id) ? " speaking" : "";
-      if (src) {
-        return `<div class="world-sprite-wrapper${speaking}" data-actor-id="${a.actor_id}"><img class="world-sprite" src="${src}" alt="${a.name}" title="${a.name}" /></div>`;
-      }
-      return `<div class="world-sprite-wrapper${speaking}" data-actor-id="${a.actor_id}"><div class="world-sprite world-sprite-placeholder" title="${a.name}">${initial}</div></div>`;
+      const speechIndicator = speaking ? '<span class="sprite-speaking-badge"></span>' : "";
+      return `<div class="world-sprite-wrapper${speaking}" data-actor-id="${a.actor_id}">
+        <img class="world-sprite" src="${src}" alt="${escapeHtml(a.name || a.actor_id)}" title="${escapeHtml(a.name || a.actor_id)}" />
+        ${speechIndicator}
+      </div>`;
     })
     .join("");
 }
@@ -419,19 +425,18 @@ function renderArena() {
   arenaElements.moduleLabel.textContent = selectedModuleLabel;
   arenaElements.stepCounter.textContent = `Step ${gameState.current_step + 1} of ${gameState.max_steps}`;
 
-  // Actors (use generated sprite if available)
+  const speakingIds = new Set(gameState.current_actor_reactions.map((r) => r.actor_id));
+
   arenaElements.actorCards.innerHTML = actors
     .map((a) => {
-      const sprite = worldData.actor_sprites?.[a.actor_id];
-      const initial = (a.name || "?")[0];
-      const avatarHtml = sprite
-        ? `<img class="actor-avatar-img" src="${sprite}" alt="${a.name}" />`
-        : `<div class="actor-avatar">${initial}</div>`;
+      const avatarSrc = getActorAvatarUrl(a.actor_id, worldData.actor_sprites?.[a.actor_id]);
+      const speaking = speakingIds.has(a.actor_id);
+      const speakingBadge = speaking ? '<span class="actor-speaking-badge"></span>' : "";
       return `
-    <div class="actor-card" data-actor-id="${a.actor_id}">
-      <div class="actor-avatar-wrap">${avatarHtml}</div>
-      <span class="actor-name">${a.name || a.actor_id}</span>
-      <span class="actor-role">${a.role || ""}</span>
+    <div class="actor-card${speaking ? " speaking" : ""}" data-actor-id="${a.actor_id}">
+      <div class="actor-avatar-wrap">${speakingBadge}<img class="actor-avatar-img" src="${avatarSrc}" alt="${escapeHtml(a.name || a.actor_id)}" /></div>
+      <span class="actor-name">${escapeHtml(a.name || a.actor_id)}</span>
+      <span class="actor-role">${escapeHtml(a.role || "")}</span>
     </div>
   `;
     })
@@ -442,19 +447,30 @@ function renderArena() {
   arenaElements.hpBarFill.style.width = `${hpPercent}%`;
   arenaElements.hpText.textContent = `${gameState.player_hp} / ${gameState.max_hp}`;
 
-  // Situation
-  arenaElements.situationText.textContent = gameState.current_situation;
+  // Situation — replace element to retrigger entrance animation
+  const situationWrap = document.querySelector(".narrative-flow");
+  if (situationWrap) {
+    const p = document.createElement("p");
+    p.className = "situation-text";
+    p.id = "situation-text";
+    p.textContent = gameState.current_situation;
+    const old = situationWrap.querySelector("#situation-text");
+    if (old) situationWrap.replaceChild(p, old);
+    arenaElements.situationText = p;
+  }
 
   // Actor reactions from last turn (interactive dialogue bubbles)
-  const speakingIds = new Set(gameState.current_actor_reactions.map((r) => r.actor_id));
   arenaElements.actorReactions.innerHTML = gameState.current_actor_reactions
     .map(
-      (r) => `
-    <div class="reaction-bubble" data-actor-id="${r.actor_id}">
-      <span class="reaction-avatar">${(getActorName(r.actor_id) || "?")[0]}</span>
-      <span class="reaction-dialogue"><strong>${getActorName(r.actor_id)}:</strong> ${escapeHtml(r.dialogue)}</span>
+      (r) => {
+        const avatarUrl = getActorAvatarUrl(r.actor_id, worldData.actor_sprites?.[r.actor_id]);
+        return `
+    <div class="reaction-bubble reaction-speaks" data-actor-id="${r.actor_id}">
+      <img class="reaction-avatar-img" src="${avatarUrl}" alt="" />
+      <span class="reaction-dialogue"><strong>${escapeHtml(getActorName(r.actor_id))}:</strong> ${escapeHtml(r.dialogue)}</span>
     </div>
-  `
+  `;
+      }
     )
     .join("");
 

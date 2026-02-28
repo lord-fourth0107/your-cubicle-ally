@@ -29,7 +29,7 @@ cd backend
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env   # add your API keys
+cp .env.example .env   # add your API keys (GOOGLE_API_KEY for AI-generated character sprites)
 uvicorn api.main:app --reload --port 8000
 ```
 
