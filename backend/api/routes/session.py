@@ -43,7 +43,7 @@ _sessions: dict[str, GameState] = {}
 
 _MOCK_ACTORS = [
     ActorInstance(
-        actor_id="raj",
+        actor_id="marcus",
         persona="A confident, socially dominant mid-level colleague who doesn't believe he's done anything wrong.",
         role="The offender. Makes a sexually charged joke at a team lunch and deflects any pushback with humour.",
         personality="Charming, self-assured, minimises conflict by reframing it as oversensitivity.",
@@ -53,7 +53,7 @@ _MOCK_ACTORS = [
         current_directive="",
     ),
     ActorInstance(
-        actor_id="priya",
+        actor_id="claire",
         persona="A reserved, professional newer team member who is the target of the joke.",
         role="The target. She is visibly uncomfortable but hesitant to make a scene in a group setting.",
         personality="Quietly composed, doesn't want to cause conflict, but will open up if given a safe space.",
@@ -63,7 +63,7 @@ _MOCK_ACTORS = [
         current_directive="",
     ),
     ActorInstance(
-        actor_id="amit",
+        actor_id="jordan",
         persona="A quiet bystander who laughed along but privately feels uneasy.",
         role="The bystander. Will follow the player's lead if directly engaged.",
         personality="Conflict-averse, goes along with the group, but has a conscience.",
@@ -78,20 +78,20 @@ _ENTRY_TURN = Turn(
     step=0,
     situation=(
         "It's a Friday team lunch at a restaurant. The mood is relaxed. "
-        "Raj, your senior colleague, cracks a sexually charged joke loosely directed at Priya. "
-        "The table laughs awkwardly. Priya goes quiet and stares at her plate. "
+        "Marcus, your senior colleague, cracks a sexually charged joke loosely directed at Claire. "
+        "The table laughs awkwardly. Claire goes quiet and stares at her plate. "
         "Everyone is waiting to see what happens next."
     ),
-    turn_order=["raj"],
-    directives={"raj": "Make the joke and look pleased with yourself."},
+    turn_order=["marcus"],
+    directives={"marcus": "Make the joke and look pleased with yourself."},
     actor_reactions=[
         ActorReaction(
-            actor_id="raj",
+            actor_id="marcus",
             dialogue="Relax, it's just a joke. Everyone's so sensitive these days.",
         )
     ],
     choices_offered=[
-        Choice(label="Ask Priya privately if she's okay after lunch", valence="positive"),
+        Choice(label="Ask Claire privately if she's okay after lunch", valence="positive"),
         Choice(label="Change the subject loudly to break the tension", valence="neutral"),
         Choice(label="Laugh it off and look away", valence="negative"),
     ],
@@ -132,6 +132,7 @@ async def start_session(body: dict):
     """
     raw_profile = body.get("player_profile", {})
     player_profile = PlayerProfile(
+        name=raw_profile.get("name", "there"),
         role=raw_profile.get("role", "Professional"),
         seniority=raw_profile.get("seniority", "Mid-level"),
         domain=raw_profile.get("domain", "General"),
@@ -216,7 +217,7 @@ async def get_debrief(session_id: str):
         "overall_score": overall_score,
         "summary": (
             f"You finished the scenario with {state.player_hp} HP remaining. "
-            "Your choices had real consequences for Priya and signalled to the group what kind of colleague you are. "
+            "Your choices had real consequences for Claire and signalled to the group what kind of colleague you are. "
             "Review the turn breakdown below to understand where you could have intervened more effectively."
         ),
         "turn_breakdowns": turn_breakdowns,

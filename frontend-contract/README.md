@@ -29,6 +29,7 @@ import type { GameState } from "../../frontend-contract/types";
 // 1. Start a session
 const { session_id, game_state } = await api.startSession({
   player_profile: {
+    name: "Alex",
     role: "Software Engineer",
     seniority: "Mid-level",
     domain: "Technology",
@@ -70,12 +71,13 @@ Start a new game session. Returns the initial `GameState` including the entry-tu
 ```typescript
 {
   player_profile: {
-    role: string;       // e.g. "Software Engineer"
-    seniority: string;  // e.g. "Mid-level"
-    domain: string;     // e.g. "Technology"
+    name: string;        // player's first name — actors use this when addressing them
+    role: string;        // e.g. "Software Engineer"
+    seniority: string;   // e.g. "Mid-level"
+    domain: string;      // e.g. "Technology"
     raw_context: string; // full resume or JD text
   };
-  module_id: string;    // e.g. "posh"
+  module_id: string;     // e.g. "posh"
 }
 ```
 
@@ -299,6 +301,7 @@ interface Evaluation {
 
 ```typescript
 interface PlayerProfile {
+  name: string;        // collected on Setup screen — actors address the player by this name
   role: string;
   seniority: string;
   domain: string;
@@ -369,11 +372,11 @@ You do not need to configure anything — just start the backend and call the en
 
 | Step | What happens | HP delta |
 |------|-------------|----------|
-| 0 (entry) | Raj cracks the joke; Priya goes quiet | 0 |
-| 1 | Group laughs awkwardly; Amit looks uncomfortable | −10 |
-| 2 | Priya quietly leaves the table | −10 |
-| 3 | Raj makes another comment; Amit pushes back mildly | −15 |
-| 4 | Priya returns; private window to check in | −5 |
+| 0 (entry) | Marcus cracks the joke; Claire goes quiet | 0 |
+| 1 | Group laughs awkwardly; Jordan looks uncomfortable | −10 |
+| 2 | Claire quietly leaves the table | −10 |
+| 3 | Marcus makes another comment; Jordan pushes back mildly | −15 |
+| 4 | Claire returns; private window to check in | −5 |
 | 5 | HR contact in the corridor | 0 → win |
 
 Starting HP: 100. All 5 player turns deal cumulative damage: `100 − 10 − 10 − 15 − 5 = 60 HP` at win if every turn fires.

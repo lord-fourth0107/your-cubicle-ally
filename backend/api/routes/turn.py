@@ -32,146 +32,148 @@ router = APIRouter()
 # the previous step's choices.
 # ---------------------------------------------------------------------------
 
-_MOCK_TURNS: list[dict] = [
-    # Player's first action → step 1
-    {
-        "situation": (
-            "The group laughs awkwardly. Priya forces a smile but her eyes are down. "
-            "Amit catches your eye briefly, then looks away. "
-            "Raj is still grinning, waiting to see if anyone pushes back."
-        ),
-        "turn_order": ["raj", "amit"],
-        "directives": {
-            "raj": "Look pleased. Wait for someone to validate you.",
-            "amit": "Laugh nervously. Don't commit to a side.",
-        },
-        "actor_reactions": [
-            ActorReaction(actor_id="raj", dialogue="See? Everyone gets it. You all just need to lighten up."),
-            ActorReaction(actor_id="amit", dialogue="I mean... haha... yeah. Anyway, should we order?"),
-        ],
-        "choices_offered": [
-            Choice(label="Tell Raj directly that the comment wasn't appropriate", valence="positive"),
-            Choice(label="Ask Amit quietly what he thought of that", valence="neutral"),
-            Choice(label="Agree with Raj and change the subject", valence="negative"),
-        ],
-        "hp_delta": -10,
-        "score": 60,
-        "reasoning": "Player's first action shaped the group dynamic. Failing to intervene early normalises the behaviour.",
-        "is_critical_failure": False,
-        "narrative_branch": "group_laughs",
-    },
-    # Player's second action → step 2
-    {
-        "situation": (
-            "Priya quietly excuses herself to the bathroom. Raj watches her go. "
-            "'She'll get over it,' he says to no one in particular. "
-            "Amit shifts in his seat. This is your moment."
-        ),
-        "turn_order": ["raj", "amit"],
-        "directives": {
-            "raj": "Minimise the situation. Act like Priya is overreacting.",
-            "amit": "Be visibly uncomfortable. Show you want someone to do something.",
-        },
-        "actor_reactions": [
-            ActorReaction(actor_id="raj", dialogue="She's always been a bit sensitive. You know how it is."),
-            ActorReaction(actor_id="amit", dialogue="I don't know... that felt like a bit much to me, honestly."),
-        ],
-        "choices_offered": [
-            Choice(label="Follow Priya to check in with her privately", valence="positive"),
-            Choice(label="Challenge Raj's 'she'll get over it' comment", valence="neutral"),
-            Choice(label="Nod and move on — it's not your place", valence="negative"),
-        ],
-        "hp_delta": -10,
-        "score": 55,
-        "reasoning": "The situation escalated with Priya leaving. A direct bystander response was available but not taken.",
-        "is_critical_failure": False,
-        "narrative_branch": "priya_exits",
-    },
-    # Player's third action → step 3
-    {
-        "situation": (
-            "Priya returns to the table. She looks composed but quieter than before. "
-            "Raj makes another off-colour remark — smaller this time, under his breath, "
-            "but you catch it. Amit gives you a pointed look."
-        ),
-        "turn_order": ["raj", "priya", "amit"],
-        "directives": {
-            "raj": "Make a quieter follow-up comment. Test whether anyone will push back.",
-            "priya": "Return composed. Don't engage directly with Raj.",
-            "amit": "Signal to the player nonverbally that someone needs to say something.",
-        },
-        "actor_reactions": [
-            ActorReaction(actor_id="raj", dialogue="Back already? Thought we scared you off. Ha."),
-            ActorReaction(actor_id="priya", dialogue="Let's just... have a nice lunch."),
-            ActorReaction(actor_id="amit", dialogue="Raj, come on. That's enough, yeah?"),
-        ],
-        "choices_offered": [
-            Choice(label="Back Amit up: 'He's right, Raj. That's not okay.'", valence="positive"),
-            Choice(label="Address Priya directly: 'You okay? We can talk later.'", valence="neutral"),
-            Choice(label="Stay quiet — Amit said something, that's enough", valence="negative"),
-        ],
-        "hp_delta": -15,
-        "score": 40,
-        "reasoning": "Raj's continued behaviour required a direct response. A second incident without intervention signals tacit acceptance.",
-        "is_critical_failure": False,
-        "narrative_branch": "raj_doubles_down",
-    },
-    # Player's fourth action → step 4
-    {
-        "situation": (
-            "Lunch wraps up. The group starts heading back to the office. "
-            "Priya is walking ahead on her own. You have a window to talk to her privately "
-            "before the day moves on."
-        ),
-        "turn_order": ["priya"],
-        "directives": {
-            "priya": "Walk ahead. Be available to the player if approached.",
-        },
-        "actor_reactions": [
-            ActorReaction(
-                actor_id="priya",
-                dialogue="Oh, hey. I'm fine, really. Just... you know. Anyway. Thanks for asking.",
+def _build_mock_turns(player_name: str) -> list[dict]:
+    """Build the scripted turn sequence, personalised with the player's name."""
+    return [
+        # Player's first action → step 1
+        {
+            "situation": (
+                "The group laughs awkwardly. Claire forces a smile but her eyes are down. "
+                "Jordan catches your eye briefly, then looks away. "
+                "Marcus is still grinning, waiting to see if anyone pushes back."
             ),
-        ],
-        "choices_offered": [
-            Choice(
-                label="Tell Priya you saw what happened and you're happy to support a formal report",
-                valence="positive",
+            "turn_order": ["marcus", "jordan"],
+            "directives": {
+                "marcus": "Look pleased. Wait for someone to validate you.",
+                "jordan": "Laugh nervously. Don't commit to a side.",
+            },
+            "actor_reactions": [
+                ActorReaction(actor_id="marcus", dialogue="See? Everyone gets it. You all just need to lighten up."),
+                ActorReaction(actor_id="jordan", dialogue="I mean... haha... yeah. Anyway, should we order?"),
+            ],
+            "choices_offered": [
+                Choice(label="Tell Marcus directly that the comment wasn't appropriate", valence="positive"),
+                Choice(label="Ask Jordan quietly what he thought of that", valence="neutral"),
+                Choice(label="Agree with Marcus and change the subject", valence="negative"),
+            ],
+            "hp_delta": -10,
+            "score": 60,
+            "reasoning": "Player's first action shaped the group dynamic. Failing to intervene early normalises the behaviour.",
+            "is_critical_failure": False,
+            "narrative_branch": "group_laughs",
+        },
+        # Player's second action → step 2
+        {
+            "situation": (
+                "Claire quietly excuses herself to the bathroom. Marcus watches her go. "
+                "'She'll get over it,' he says to no one in particular. "
+                "Jordan shifts in his seat. This is your moment."
             ),
-            Choice(label="Say you thought it was out of line and leave it at that", valence="neutral"),
-            Choice(label="Say nothing — she said she's fine", valence="negative"),
-        ],
-        "hp_delta": -5,
-        "score": 70,
-        "reasoning": "Private check-in with Priya was the right instinct. Whether she was explicitly offered reporting support is what distinguishes a good response from an excellent one.",
-        "is_critical_failure": False,
-        "narrative_branch": "private_checkin",
-    },
-    # Player's fifth action → step 5 (last real turn before win/lose resolution)
-    {
-        "situation": (
-            "Back at the office. You pass your HR contact in the corridor. "
-            "She asks how the team lunch was — routine small talk. "
-            "You have a choice about how much to share."
-        ),
-        "turn_order": [],
-        "directives": {},
-        "actor_reactions": [],
-        "choices_offered": [
-            Choice(
-                label="Tell her what happened and ask about the reporting process",
-                valence="positive",
+            "turn_order": ["marcus", "jordan"],
+            "directives": {
+                "marcus": "Minimise the situation. Act like Claire is overreacting.",
+                "jordan": "Be visibly uncomfortable. Show you want someone to do something.",
+            },
+            "actor_reactions": [
+                ActorReaction(actor_id="marcus", dialogue="She's always been a bit sensitive. You know how it is."),
+                ActorReaction(actor_id="jordan", dialogue="I don't know... that felt like a bit much to me, honestly."),
+            ],
+            "choices_offered": [
+                Choice(label="Follow Claire to check in with her privately", valence="positive"),
+                Choice(label="Challenge Marcus's 'she'll get over it' comment", valence="neutral"),
+                Choice(label="Nod and move on — it's not your place", valence="negative"),
+            ],
+            "hp_delta": -10,
+            "score": 55,
+            "reasoning": "The situation escalated with Claire leaving. A direct bystander response was available but not taken.",
+            "is_critical_failure": False,
+            "narrative_branch": "claire_exits",
+        },
+        # Player's third action → step 3
+        {
+            "situation": (
+                "Claire returns to the table. She looks composed but quieter than before. "
+                "Marcus makes another off-colour remark — smaller this time, under his breath, "
+                "but you catch it. Jordan gives you a pointed look."
             ),
-            Choice(label="Say it was fine — you'll handle it another way", valence="neutral"),
-            Choice(label="Say it was great. Move on.", valence="negative"),
-        ],
-        "hp_delta": 0,
-        "score": 80,
-        "reasoning": "The final opportunity to escalate through formal channels. Proactively raising it with HR is the gold standard bystander response.",
-        "is_critical_failure": False,
-        "narrative_branch": "hr_corridor",
-    },
-]
+            "turn_order": ["marcus", "claire", "jordan"],
+            "directives": {
+                "marcus": "Make a quieter follow-up comment. Test whether anyone will push back.",
+                "claire": "Return composed. Don't engage directly with Marcus.",
+                "jordan": "Signal to the player nonverbally that someone needs to say something.",
+            },
+            "actor_reactions": [
+                ActorReaction(actor_id="marcus", dialogue="Back already? Thought we scared you off. Ha."),
+                ActorReaction(actor_id="claire", dialogue="Let's just... have a nice lunch."),
+                ActorReaction(actor_id="jordan", dialogue="Marcus, come on. That's enough, yeah?"),
+            ],
+            "choices_offered": [
+                Choice(label="Back Jordan up: 'They're right, Marcus. That's not okay.'", valence="positive"),
+                Choice(label="Address Claire directly: 'You okay? We can talk later.'", valence="neutral"),
+                Choice(label="Stay quiet — Jordan said something, that's enough", valence="negative"),
+            ],
+            "hp_delta": -15,
+            "score": 40,
+            "reasoning": "Marcus's continued behaviour required a direct response. A second incident without intervention signals tacit acceptance.",
+            "is_critical_failure": False,
+            "narrative_branch": "marcus_doubles_down",
+        },
+        # Player's fourth action → step 4
+        {
+            "situation": (
+                "Lunch wraps up. The group starts heading back to the office. "
+                "Claire is walking ahead on her own. You have a window to talk to her privately "
+                "before the day moves on."
+            ),
+            "turn_order": ["claire"],
+            "directives": {
+                "claire": "Walk ahead. Be available to the player if approached.",
+            },
+            "actor_reactions": [
+                ActorReaction(
+                    actor_id="claire",
+                    dialogue=f"Oh, hey {player_name}. I'm fine, really. Just... you know. Anyway. Thanks for asking.",
+                ),
+            ],
+            "choices_offered": [
+                Choice(
+                    label="Tell Claire you saw what happened and you're happy to support a formal report",
+                    valence="positive",
+                ),
+                Choice(label="Say you thought it was out of line and leave it at that", valence="neutral"),
+                Choice(label="Say nothing — she said she's fine", valence="negative"),
+            ],
+            "hp_delta": -5,
+            "score": 70,
+            "reasoning": "Private check-in with Claire was the right instinct. Whether she was explicitly offered reporting support is what distinguishes a good response from an excellent one.",
+            "is_critical_failure": False,
+            "narrative_branch": "private_checkin",
+        },
+        # Player's fifth action → step 5 (last real turn before win/lose resolution)
+        {
+            "situation": (
+                "Back at the office. You pass your HR contact in the corridor. "
+                "She asks how the team lunch was — routine small talk. "
+                "You have a choice about how much to share."
+            ),
+            "turn_order": [],
+            "directives": {},
+            "actor_reactions": [],
+            "choices_offered": [
+                Choice(
+                    label="Tell her what happened and ask about the reporting process",
+                    valence="positive",
+                ),
+                Choice(label="Say it was fine — you'll handle it another way", valence="neutral"),
+                Choice(label="Say it was great. Move on.", valence="negative"),
+            ],
+            "hp_delta": 0,
+            "score": 80,
+            "reasoning": "The final opportunity to escalate through formal channels. Proactively raising it with HR is the gold standard bystander response.",
+            "is_critical_failure": False,
+            "narrative_branch": "hr_corridor",
+        },
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -211,11 +213,12 @@ async def submit_turn(body: dict):
     # Which scripted turn comes next?
     # current_step is 0-indexed. Step 0 is the entry turn (already in history).
     # The first player action advances to step 1.
-    script_index = state.current_step  # 0-based index into _MOCK_TURNS
-    if script_index >= len(_MOCK_TURNS):
+    mock_turns = _build_mock_turns(state.player_profile.name)
+    script_index = state.current_step  # 0-based index into mock_turns
+    if script_index >= len(mock_turns):
         raise HTTPException(status_code=400, detail="No more turns available in this session.")
 
-    script = _MOCK_TURNS[script_index]
+    script = mock_turns[script_index]
 
     evaluation = Evaluation(
         score=script["score"],

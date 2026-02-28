@@ -23,6 +23,7 @@ export type ChoiceValence = "positive" | "neutral" | "negative";
 // ---------------------------------------------------------------------------
 
 export interface PlayerProfile {
+  name: string;         // player's first name — used by actors when addressing them
   role: string;         // e.g. "Software Engineer"
   seniority: string;    // e.g. "Mid-level"
   domain: string;       // e.g. "Technology"

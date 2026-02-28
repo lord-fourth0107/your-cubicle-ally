@@ -106,21 +106,28 @@ Use this to build the Arena UI before the backend is connected:
 ```typescript
 const mockGameState = {
   session_id: "mock-001",
+  player_profile: {
+    name: "Alex",
+    role: "Software Engineer",
+    seniority: "Mid-level",
+    domain: "Technology",
+    raw_context: "",
+  },
   player_hp: 65,
   max_hp: 100,
   current_step: 3,
   max_steps: 6,
   status: "active",
   current_situation:
-    "Raj leans over to Priya and says something quietly. She shifts in her seat " +
+    "Marcus leans over to Claire and says something quietly. She shifts in her seat " +
     "and looks uncomfortable. He notices you watching and smirks.",
   current_choices: [
-    { label: "Ask Priya privately if she's okay after lunch", valence: "positive" },
+    { label: "Ask Claire privately if she's okay after lunch", valence: "positive" },
     { label: "Laugh it off and look away", valence: "negative" },
     { label: "Change the subject loudly to break the tension", valence: "neutral" },
   ],
   current_actor_reactions: [
-    { actor_id: "raj", dialogue: "Relax, it's just a joke. Everyone's so sensitive these days." },
+    { actor_id: "marcus", dialogue: "Relax, it's just a joke. Everyone's so sensitive these days." },
   ],
 };
 ```
